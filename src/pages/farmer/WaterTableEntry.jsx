@@ -7,7 +7,7 @@ import {
   CardContent
 } from "@mui/material";
 
-function Rainfall() {
+function WaterTableEntry() {
   return (
     <FarmerLayout>
 
@@ -15,20 +15,19 @@ function Rainfall() {
         <CardContent>
 
           <Typography variant="h4" gutterBottom>
-            🌧 Rainfall Entry
+            💧 Water Table Entry
           </Typography>
 
           <TextField
             fullWidth
-            label="Date"
-            type="date"
+            label="My Well"
+            value="W001"
             margin="normal"
-            InputLabelProps={{ shrink: true }}
           />
 
           <TextField
             fullWidth
-            label="Rainfall (mm)"
+            label="Water Table (m)"
             margin="normal"
           />
 
@@ -37,7 +36,7 @@ function Rainfall() {
             size="large"
             sx={{ mt: 3 }}
           >
-            Save
+            Submit
           </Button>
 
         </CardContent>
@@ -47,4 +46,4 @@ function Rainfall() {
   );
 }
 
-export default Rainfall;
+export default WaterTableEntry;

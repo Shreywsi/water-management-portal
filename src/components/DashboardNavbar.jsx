@@ -13,7 +13,15 @@ import LanguageSelector from "./LanguageSelector";
 
 function DashboardNavbar() {
   return (
-    <AppBar position="fixed">
+    <AppBar
+      position="fixed"
+      elevation={0}
+      sx={{
+        bgcolor: "#1B2A4A",   // Same as sidebar
+        color: "#fff",
+        borderBottom: "1px solid rgba(255,255,255,0.08)"
+      }}
+    >
       <Toolbar
         sx={{
           display: "flex",
@@ -27,7 +35,7 @@ function DashboardNavbar() {
           variant="h6"
           sx={{
             flexGrow: 1,
-            fontWeight: "bold",
+            fontWeight: 700,
             fontSize: {
               xs: "1rem",
               sm: "1.2rem",

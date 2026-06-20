@@ -4,45 +4,52 @@ import {
   Typography,
   Box
 } from "@mui/material";
-
+import WaterDropOutlinedIcon from "@mui/icons-material/WaterDropOutlined";
 import LanguageSelector from "./LanguageSelector";
 
 function PublicNavbar() {
   return (
-    <AppBar position="fixed">
-      <Toolbar
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 1,
-          py: 1
-        }}
-      >
-        <Typography
-          variant="h6"
-          sx={{
-            flexGrow: 1,
-            fontWeight: "bold",
-            fontSize: {
-              xs: "1rem",
-              sm: "1.2rem",
-              md: "1.4rem"
-            }
-          }}
-        >
-          Groundwater Management Portal
-        </Typography>
+    <AppBar
+      position="fixed"
+      elevation={0}
+      sx={{
+        bgcolor: "#1B2A4A",
+        borderBottom: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      <Toolbar sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: 1,
+        py: 1,
+      }}>
 
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center"
-          }}
-        >
+        {/* Brand */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+          <Box sx={{
+            width: 30, height: 30, borderRadius: "50%",
+            bgcolor: "rgba(255,255,255,0.10)",
+            border: "1px solid rgba(255,255,255,0.18)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            flexShrink: 0,
+          }}>
+            <WaterDropOutlinedIcon sx={{ color: "#fff", fontSize: 15 }} />
+          </Box>
+          <Typography variant="h6" sx={{
+            fontWeight: 500,
+            fontSize: { xs: "0.95rem", sm: "1.05rem", md: "1.1rem" },
+            color: "#fff",
+            letterSpacing: "0.01em",
+          }}>
+            Gujarat Water Management Portal
+          </Typography>
+        </Box>
+
+        <Box sx={{ display: "flex", alignItems: "center" }}>
           <LanguageSelector />
         </Box>
+
       </Toolbar>
     </AppBar>
   );

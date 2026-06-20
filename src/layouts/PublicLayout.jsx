@@ -1,6 +1,6 @@
 import { Box, Toolbar } from "@mui/material";
 import PublicNavbar from "../components/PublicNavbar";
-
+import Footer from "../components/Footer";
 function PublicLayout({ children }) {
 
   return (
@@ -18,8 +18,10 @@ function PublicLayout({ children }) {
       <Box>
         {children}
       </Box>
+       <Footer />
 
     </Box>
+    
   );
 }
 

@@ -4,10 +4,11 @@ import LoginPage from "../pages/LoginPage";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 
 import FarmerDashboard from "../pages/farmer/FarmerDashboard";
-import Rainfall from "../pages/farmer/Rainfall";
-import Pumping from "../pages/farmer/Pumping";
-import MyWells from "../pages/farmer/MyWells";
-import History from "../pages/farmer/History";
+import PumpingEntry from "../pages/farmer/PumpingEntry";
+import WaterTableEntry from "../pages/farmer/WaterTableEntry";
+import WaterLevelEntry from "../pages/farmer/WaterLevelEntry";
+import TDSEntry from "../pages/farmer/TDSEntry";
+import SalinityEntry from "../pages/farmer/SalinityEntry";
 
 import CRPDashboard from "../pages/crp/CRPDashboard";
 import ResearcherDashboard from "../pages/researcher/ResearcherDashboard";
@@ -22,13 +23,12 @@ function AppRoutes() {
         <Route path="/admin" element={<AdminDashboard />} />
 
         <Route path="/farmer" element={<FarmerDashboard />} />
-        <Route path="/farmer/rainfall" element={<Rainfall />} />
-
-        <Route path="/farmer/pumping" element={<Pumping />} />
-
-        <Route path="/farmer/wells" element={<MyWells />} />
-
-        <Route path="/farmer/history" element={<History />} />
+        <Route path="/farmer/water-table" element={<WaterTableEntry />} />
+        <Route path="/farmer/pumping" element={<PumpingEntry />} />
+        <Route path="/farmer/water-level" element={<WaterLevelEntry />} />
+        <Route path="/farmer/tds" element={<TDSEntry />} />
+        <Route path="/farmer/salinity" element={<SalinityEntry />} />
+    
 
         <Route path="/crp" element={<CRPDashboard />} />
 
