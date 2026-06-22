@@ -162,7 +162,84 @@ export async function fetchVillages() {
 export async function fetchWells() {
   return [];
 }
+export async function fetchPumpingChart() {
+  try {
+    const response = await fetch(
+      "http://127.0.0.1:8000/api/pumping/"
+    );
 
+    const data = await response.json();
+
+    return data;
+
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+}
+export async function fetchWaterLevelChart() {
+
+  const response = await fetch(
+    "http://127.0.0.1:8000/api/waterlevel/"
+  );
+
+  return await response.json();
+}
+export async function fetchTDSChart() {
+
+  const response = await fetch(
+    "http://127.0.0.1:8000/api/tds/"
+  );
+
+  return await response.json();
+}
+export async function fetchSalinityChart() {
+
+  const response = await fetch(
+    "http://127.0.0.1:8000/api/salinity/"
+  );
+
+  return await response.json();
+}
+export async function fetchPieChart() {
+
+  const [
+    pumping,
+    waterlevel,
+    watertable,
+    tds,
+    salinity
+  ] = await Promise.all([
+    fetch("http://127.0.0.1:8000/api/pumping/"),
+    fetch("http://127.0.0.1:8000/api/waterlevel/"),
+    fetch("http://127.0.0.1:8000/api/watertable/"),
+    fetch("http://127.0.0.1:8000/api/tds/"),
+    fetch("http://127.0.0.1:8000/api/salinity/")
+  ]);
+
+  return [
+    {
+      name: "Pumping",
+      value: (await pumping.json()).length
+    },
+    {
+      name: "Water Level",
+      value: (await waterlevel.json()).length
+    },
+    {
+      name: "Water Table",
+      value: (await watertable.json()).length
+    },
+    {
+      name: "TDS",
+      value: (await tds.json()).length
+    },
+    {
+      name: "Salinity",
+      value: (await salinity.json()).length
+    }
+  ];
+}
 
 // ==========================================
 // Audit Logs
