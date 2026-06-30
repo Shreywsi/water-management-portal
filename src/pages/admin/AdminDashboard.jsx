@@ -20,7 +20,7 @@ import RecordPieChart from "../../components/charts/RecordPieChart";
 import WaterLevelChart from "../../components/charts/WaterLevelChart";
 import TDSChart from "../../components/charts/TDSChart";
 import SalinityChart from "../../components/charts/SalinityChart";
-
+import AddWaterLevelForm from "../../components/admin/AddWaterLevelForm";
 import WaterMap from "../../components/WaterMap";
 
 import {
@@ -85,6 +85,19 @@ export default function AdminDashboard() {
       mounted = false;
     };
   }, []);
+
+  // Re-fetch water level + pie chart data after an admin adds a new
+  // reading via AddWaterLevelForm, so the dashboard charts update
+  // without requiring a full page reload.
+  const refreshWaterData = () => {
+    Promise.all([
+      fetchWaterLevelChart(),
+      fetchPieChart()
+    ]).then(([waterLevel, pie]) => {
+      setWaterLevelData(waterLevel);
+      setPieData(pie);
+    });
+  };
 
   /* Responsive chart heights */
   const barChartHeight = isSmDown ? 260 : isMdDown ? 300 : 340;
@@ -269,6 +282,7 @@ export default function AdminDashboard() {
   </Box>
 </Card>
 
+<AddWaterLevelForm onDataAdded={refreshWaterData} />
 
         {/* Recent Activity */}
         <Box sx={{ overflowX: "auto" }}>

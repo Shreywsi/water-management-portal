@@ -296,3 +296,57 @@ def well_detail(request, well_id):
         "well": well,
         "waterLevelHistory": {"monthly": monthly, "quarterly": quarterly, "yearly": yearly}
     })
+
+#-----
+from datetime import datetime
+from django.views.decorators.csrf import csrf_exempt
+import traceback
+
+
+@csrf_exempt
+@api_view(["POST"])
+def add_water_level(request):
+    """
+    Admin endpoint to add a new groundwater level reading for a well.
+    Expects JSON body: { "well_id": int, "time": "YYYY-MM-DD", "water_level_m": float }
+    """
+    well_id = request.data.get("well_id")
+    time = request.data.get("time")
+    water_level_m = request.data.get("water_level_m")
+
+    if well_id is None or not time or water_level_m is None:
+        return Response(
+            {"error": "well_id, time, and water_level_m are all required."},
+            status=400
+        )
+
+    try:
+        datetime.strptime(time, "%Y-%m-%d")
+    except ValueError:
+        return Response({"error": "time must be in YYYY-MM-DD format."}, status=400)
+
+    try:
+        water_level_m = float(water_level_m)
+    except (TypeError, ValueError):
+        return Response({"error": "water_level_m must be a number."}, status=400)
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT id FROM wells WHERE id = %s;", [well_id])
+            if cursor.fetchone() is None:
+                return Response({"error": "Well not found."}, status=404)
+
+            cursor.execute("""
+                INSERT INTO groundwater_levels (well_id, time, water_level_m)
+                VALUES (%s, %s, %s);
+            """, [well_id, time, water_level_m])
+    except Exception as e:
+        print(traceback.format_exc())
+        return Response({"error": str(e)}, status=500)
+
+    return Response({
+        "success": True,
+        "well_id": well_id,
+        "time": time,
+        "water_level_m": water_level_m
+    }, status=201)
