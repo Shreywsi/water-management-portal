@@ -152,106 +152,6 @@ def open_qgis(request):
 
 @api_view(["GET"])
 def well_detail(request, well_id):
-    """
-    Returns full property-box data for a single well:
-    basic info + monthly/quarterly/yearly water level history + LULC.
-    """
-    with connection.cursor() as cursor:
-
-        # Basic well info
-        # NOTE: 'status' is included here. If your groundwater_map view/table
-        # does not have a status column yet, either add one or remove it
-        # from this SELECT and from the frontend's Status tile.
-        cursor.execute("""
-            SELECT id, well_name, village, latitude, longitude, depth_m, water_level_m, status
-            FROM groundwater_map
-            WHERE id = %s;
-        """, [well_id])
-        columns = [col[0] for col in cursor.description]
-        row = cursor.fetchone()
-        if not row:
-            return Response({"error": "Well not found"}, status=404)
-        well = dict(zip(columns, row))
-
-        # Monthly water level history (last 12 months)
-        cursor.execute("""
-            SELECT
-                date_trunc('month', g.time) AS period,
-                AVG(g.water_level_m) AS avg_level
-            FROM groundwater_levels g
-            WHERE g.well_id = %s
-            GROUP BY period
-            ORDER BY period DESC
-            LIMIT 12;
-        """, [well_id])
-        monthly = [
-            {"period": r[0].strftime("%Y-%m"), "level": round(r[1], 2)}
-            for r in cursor.fetchall()
-        ][::-1]
-
-        # Quarterly water level history (last 8 quarters)
-        cursor.execute("""
-            SELECT
-                date_trunc('quarter', g.time) AS period,
-                AVG(g.water_level_m) AS avg_level
-            FROM groundwater_levels g
-            WHERE g.well_id = %s
-            GROUP BY period
-            ORDER BY period DESC
-            LIMIT 8;
-        """, [well_id])
-        quarterly = [
-            {"period": f"Q{(r[0].month - 1)//3 + 1} {r[0].year}", "level": round(r[1], 2)}
-            for r in cursor.fetchall()
-        ][::-1]
-
-        # Yearly water level history (last 5 years)
-        cursor.execute("""
-            SELECT
-                date_trunc('year', g.time) AS period,
-                AVG(g.water_level_m) AS avg_level
-            FROM groundwater_levels g
-            WHERE g.well_id = %s
-            GROUP BY period
-            ORDER BY period DESC
-            LIMIT 5;
-        """, [well_id])
-        yearly = [
-            {"period": str(r[0].year), "level": round(r[1], 2)}
-            for r in cursor.fetchall()
-        ][::-1]
-
-        # LULC for the well's location — requires a lulc_polygons table with
-        # PostGIS geometry. Wrapped in try/except so a missing table or
-        # disabled PostGIS extension doesn't break the rest of the panel.
-        lulc_row = None
-        try:
-            cursor.execute("""
-                SELECT lulc_class, ST_Area(geom::geography) / 10000 AS area_hectares
-                FROM lulc_polygons
-                WHERE ST_Contains(geom, ST_SetSRID(ST_MakePoint(%s, %s), 4326))
-                LIMIT 1;
-            """, [well["longitude"], well["latitude"]])
-            lulc_row = cursor.fetchone()
-        except Exception:
-            lulc_row = None
-
-        lulc = {
-            "class": lulc_row[0] if lulc_row else "Unknown",
-            "areaHectares": round(lulc_row[1], 1) if lulc_row else None
-        }
-
-    return Response({
-        "well": well,
-        "waterLevelHistory": {
-            "monthly": monthly,
-            "quarterly": quarterly,
-            "yearly": yearly
-        },
-        "lulc": lulc
-    })
-@api_view(["GET"])
-def well_detail(request, well_id):
     with connection.cursor() as cursor:
         cursor.execute("""
             SELECT id, well_name, village, latitude, longitude, depth_m, status
@@ -297,7 +197,7 @@ def well_detail(request, well_id):
         "waterLevelHistory": {"monthly": monthly, "quarterly": quarterly, "yearly": yearly}
     })
 
-#-----
+
 from datetime import datetime
 from django.views.decorators.csrf import csrf_exempt
 import traceback
