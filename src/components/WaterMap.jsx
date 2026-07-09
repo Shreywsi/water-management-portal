@@ -370,21 +370,23 @@ const [clusters, setClusters] = useState(null);
 const [loading, setLoading] = useState(true);
 const [selectedWellId, setSelectedWellId] = useState(null);
   useEffect(() => {
-  setLoading(true);
-
-  Promise.all([
-    fetch(`${API_BASE}/wells/`).then((r) => r.json()),
-    fetch(`${API_BASE}/village-clusters/`).then((r) => r.json()),
-  ])
-    .then(([wellData, clusterData]) => {
-      setWells(wellData);
-      setClusters(clusterData);
+  fetch(`${API_BASE}/wells/`)
+    .then((res) => res.json())
+    .then((data) => {
+      setWells(data);
       setLoading(false);
     })
     .catch((err) => {
       console.error(err);
       setLoading(false);
     });
+
+  fetch(`${API_BASE}/village-clusters/`)
+    .then((res) => res.json())
+    .then((data) => {
+      setClusters(data);
+    })
+    .catch((err) => console.error(err));
 }, [refreshKey]);
 
   return (
@@ -399,15 +401,16 @@ const [selectedWellId, setSelectedWellId] = useState(null);
           attribution="&copy; OpenStreetMap contributors"
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {clusters && (
+       {/* Village Clusters */}
+{clusters && (
   <GeoJSON
     data={clusters}
-    style={{
+    style={() => ({
       color: "#1565C0",
       weight: 2,
       fillColor: "#42A5F5",
       fillOpacity: 0.25,
-    }}
+    })}
     onEachFeature={(feature, layer) => {
       layer.bindPopup(
         `<b>Village Cluster</b><br>ID: ${
@@ -432,17 +435,19 @@ const [selectedWellId, setSelectedWellId] = useState(null);
     }}
   />
 )}
-        {!loading &&
-          wells.map((well) => (
-            <Marker
-  key={well.id}
-  position={[well.latitude, well.longitude]}
-  icon={wellDotIcon}
-  eventHandlers={{
-    click: () => setSelectedWellId(well.id),
-  }}
-/>
-          ))}
+
+{/* Wells */}
+{!loading &&
+  wells.map((well) => (
+    <Marker
+      key={well.id}
+      position={[well.latitude, well.longitude]}
+      icon={wellDotIcon}
+      eventHandlers={{
+        click: () => setSelectedWellId(well.id),
+      }}
+    />
+  ))}
       </MapContainer>
 
       <WellPropertyPanel wellId={selectedWellId} onClose={() => setSelectedWellId(null)} />
