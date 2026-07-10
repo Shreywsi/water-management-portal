@@ -1,26 +1,26 @@
-//import React from 'react';
-import { Outlet } from 'react-router-dom';
-import { Box, Toolbar } from '@mui/material';
-import AdminSidebar from '../components/admin/AdminSidebar';
-import AdminNavbar from '../components/admin/AdminNavbar';
+import { Box } from "@mui/material";
+import Sidebar from "../components/Sidebar";
 
-export default function AdminLayout() {
+export default function AdminLayout({ children }) {
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AdminNavbar />
-      <AdminSidebar />
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        backgroundColor: "#f4f6f8",
+      }}
+    >
+      <Sidebar />
+
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          width: { md: 'calc(100% - 248px)' },
-          minHeight: '100vh',
+          p: 4,
+          overflowX: "hidden",
         }}
       >
-        <Toolbar />
-        <Box sx={{ p: { xs: 2, sm: 3 } }}>
-          <Outlet />
-        </Box>
+        {children}
       </Box>
     </Box>
   );

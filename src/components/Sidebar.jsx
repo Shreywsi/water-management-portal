@@ -1,92 +1,106 @@
+import { Link, useLocation } from "react-router-dom";
+
 import {
-  Drawer,
-  Toolbar,
+  Box,
+  Typography,
   List,
   ListItemButton,
   ListItemIcon,
-  ListItemText
+  ListItemText,
 } from "@mui/material";
 
 import DashboardIcon from "@mui/icons-material/Dashboard";
-import PeopleIcon from "@mui/icons-material/People";
-import LocationCityIcon from "@mui/icons-material/LocationCity";
-import AgricultureIcon from "@mui/icons-material/Agriculture";
-import WaterDropIcon from "@mui/icons-material/WaterDrop";
-import AssessmentIcon from "@mui/icons-material/Assessment";
+import FolderIcon from "@mui/icons-material/Folder";
+import MapIcon from "@mui/icons-material/Map";
+import DescriptionIcon from "@mui/icons-material/Description";
 import SettingsIcon from "@mui/icons-material/Settings";
 
-const drawerWidth = 240;
+export default function Sidebar() {
+  const location = useLocation();
 
-function Sidebar() {
+  const menu = [
+    {
+      title: "Dashboard",
+      icon: <DashboardIcon />,
+      path: "/admin",
+    },
+    {
+      title: "My Workspace",
+      icon: <FolderIcon />,
+      path: "/admin/workspace",
+    },
+    {
+      title: "GIS Workspace",
+      icon: <MapIcon />,
+      path: "/admin/gis",
+    },
+    {
+      title: "Reports",
+      icon: <DescriptionIcon />,
+      path: "/admin/reports",
+    },
+    {
+      title: "Settings",
+      icon: <SettingsIcon />,
+      path: "/admin/settings",
+    },
+  ];
+
   return (
-    <Drawer
-      variant="permanent"
-      sx={{
-        width: drawerWidth,
-        flexShrink: 0,
-        "& .MuiDrawer-paper": {
-          width: drawerWidth,
-          boxSizing: "border-box",
-        },
-      }}
-    >
-      <Toolbar />
+    <Box
+  sx={{
+    width: 260,
+    minWidth: 260,
+
+    position: "sticky",
+    top: 0,
+
+    height: "100vh",
+
+    bgcolor: "#1E293B",
+    color: "white",
+
+    display: "flex",
+    flexDirection: "column",
+
+    flexShrink: 0,
+  }}
+>
+      <Typography
+        variant="h6"
+        sx={{
+          p: 3,
+          fontWeight: "bold",
+        }}
+      >
+        Water Portal
+      </Typography>
 
       <List>
+        {menu.map((item) => (
+          <ListItemButton
+            key={item.title}
+            component={Link}
+            to={item.path}
+            selected={location.pathname === item.path}
+            sx={{
+              color: "white",
+              "&.Mui-selected": {
+                bgcolor: "#334155",
+              },
+              "&:hover": {
+                bgcolor: "#475569",
+              },
+            }}
+          >
+            <ListItemIcon sx={{ color: "white" }}>
+              {item.icon}
+            </ListItemIcon>
 
-        <ListItemButton>
-          <ListItemIcon>
-            <DashboardIcon />
-          </ListItemIcon>
-          <ListItemText primary="Dashboard" />
-        </ListItemButton>
-
-        <ListItemButton>
-          <ListItemIcon>
-            <PeopleIcon />
-          </ListItemIcon>
-          <ListItemText primary="Users" />
-        </ListItemButton>
-
-        <ListItemButton>
-          <ListItemIcon>
-            <LocationCityIcon />
-          </ListItemIcon>
-          <ListItemText primary="Villages" />
-        </ListItemButton>
-
-        <ListItemButton>
-          <ListItemIcon>
-            <AgricultureIcon />
-          </ListItemIcon>
-          <ListItemText primary="Farmers" />
-        </ListItemButton>
-
-        <ListItemButton>
-          <ListItemIcon>
-            <WaterDropIcon />
-          </ListItemIcon>
-          <ListItemText primary="Groundwater" />
-        </ListItemButton>
-
-        <ListItemButton>
-          <ListItemIcon>
-            <AssessmentIcon />
-          </ListItemIcon>
-          <ListItemText primary="Reports" />
-        </ListItemButton>
-
-        <ListItemButton>
-          <ListItemIcon>
-            <SettingsIcon />
-          </ListItemIcon>
-          <ListItemText primary="Settings" />
-        </ListItemButton>
-
+            <ListItemText primary={item.title} />
+          </ListItemButton>
+        ))}
       </List>
-
-    </Drawer>
+    </Box>
   );
 }
-
-export default Sidebar;

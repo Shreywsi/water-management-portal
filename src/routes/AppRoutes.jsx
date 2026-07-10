@@ -13,6 +13,8 @@ import SalinityEntry from "../pages/crp/SalinityEntry";
 import CRPDashboard from "../pages/crp/CRPDashboard";
 import ResearcherDashboard from "../pages/researcher/ResearcherDashboard";
 
+import AdminLayout from "../layouts/AdminLayout";
+
 function AppRoutes() {
   return (
     <BrowserRouter>
@@ -20,7 +22,14 @@ function AppRoutes() {
 
         <Route path="/" element={<LoginPage />} />
 
-        <Route path="/admin" element={<AdminDashboard />} />
+        <Route
+  path="/admin"
+  element={
+    <AdminLayout>
+      <AdminDashboard />
+    </AdminLayout>
+  }
+/>
 
         <Route path="/farmer" element={<FarmerDashboard />} />
         <Route path="/farmer/water-table" element={<WaterTableEntry />} />
