@@ -10,22 +10,50 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = BASE_DIR.parent
+
+
+def load_environment_variables():
+    env_path = PROJECT_ROOT / ".env"
+    if not env_path.exists():
+        return
+
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+load_environment_variables()
+
+
+def get_env(name, default=None):
+    value = os.getenv(name, default)
+    if value is None:
+        return default
+    return value
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-#prdn9dy9q__6160+8201bw0j8*z%=ba3118r8+nw-gpxa88ua'
+SECRET_KEY = get_env("SECRET_KEY", "django-insecure-#prdn9dy9q__6160+8201bw0j8*z%=ba3118r8+nw-gpxa88ua")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = get_env("DEBUG", "True").lower() in {"1", "true", "yes", "on"}
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    host.strip() for host in get_env("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if host.strip()
+]
 
 
 # Application definition
@@ -81,11 +109,11 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": 'water_db',
-        "USER": "shreyasisoumya",
-        "PASSWORD": "postgres",
-        "HOST": "localhost",
-        "PORT": "5432",
+        "NAME": get_env("DATABASE_NAME", "water_db"),
+        "USER": get_env("DATABASE_USER", "shreyasisoumya"),
+        "PASSWORD": get_env("DATABASE_PASSWORD", "postgres"),
+        "HOST": get_env("DATABASE_HOST", "localhost"),
+        "PORT": get_env("DATABASE_PORT", "5432"),
     }
 }
 
@@ -126,5 +154,5 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
+    origin.strip() for origin in get_env("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if origin.strip()
 ]

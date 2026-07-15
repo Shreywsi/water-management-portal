@@ -1,4 +1,13 @@
+import sys
 import os
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+sys.path.append(BASE_DIR)
+
+from ml.predict import predict_groundwater
+
+from django.http import JsonResponse
 from django.conf import settings
 from django.db import connection
 import zipfile
@@ -7,12 +16,14 @@ from rest_framework.response import Response
 import subprocess
 from rest_framework.decorators import api_view
 
+from .gempy_service import build_geological_model
+
 import subprocess
 
 from pathlib import Path
 from rest_framework import status
 from .models import WaterTable, TDS, Salinity
-
+from .modflow_service import run_modflow
 
 @api_view(["GET"])
 def dashboard(request):
@@ -174,7 +185,31 @@ def open_qgis(request):
         "success": True
     })
 
+@api_view(["POST"])
+def run_gempy(request):
+    result = build_geological_model()
+    return Response(result)
 
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+from .gempy_service import build_geological_model
+from .modflow_service import run_modflow
+
+@api_view(["POST"])
+def run_modflow_view(request):
+
+    # Step 1: Build geology
+    geology = build_geological_model()
+
+    # Step 2: Run groundwater model
+    modflow = run_modflow()
+
+    return Response({
+        "success": True,
+        "gempy": geology,
+        "modflow": modflow
+    })
 # views.py — well property box endpoint
 
 @api_view(["GET"])
@@ -799,4 +834,14 @@ def upload_gis_file(request):
         "saved_to": file_path,
         "shp_file": shp_file,
         "extracted_files": extracted_files,
+    })
+def groundwater_prediction(request):
+
+    prediction = predict_groundwater()
+
+    return JsonResponse({
+        "status": "success",
+        "model": "LSTM",
+        "predicted_groundwater_depth": prediction,
+        "unit": "meters"
     })

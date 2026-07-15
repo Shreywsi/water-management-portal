@@ -18,6 +18,9 @@ from .views import (
     add_salinity,
     village_clusters_geojson,
     upload_gis_file,
+    run_gempy,
+    run_modflow_view,
+    groundwater_prediction,
 )
 
 urlpatterns = [
@@ -39,4 +42,7 @@ urlpatterns = [
     path("salinity/add/", add_salinity),
     path("village-clusters/", village_clusters_geojson),
     path("gis/upload/", upload_gis_file),
+    path("run-gempy/", run_gempy),
+    path("run-modflow/", run_modflow_view),
+    path("predict/", groundwater_prediction),
 ]
