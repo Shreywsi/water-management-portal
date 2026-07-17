@@ -2,7 +2,7 @@
   "name": "groundwater-portal",
   "private": true,
   "version": "1.0.0",
-  "description": "Automated i18n translation sync for Gujarat Water Management Portal",
+  "description": "Automated i18n translation sync for Water Management Portal",
   "type": "module",
   "scripts": {
     "dev": "vite",

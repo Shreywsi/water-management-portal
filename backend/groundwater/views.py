@@ -10,11 +10,14 @@ from ml.predict import predict_groundwater
 from django.http import JsonResponse
 from django.conf import settings
 from django.db import connection
+from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
 import zipfile
 from pathlib import Path
 from rest_framework.response import Response
 import subprocess
 from rest_framework.decorators import api_view
+from rest_framework.authtoken.models import Token
 
 from .gempy_service import build_geological_model
 
@@ -183,6 +186,61 @@ def open_qgis(request):
 
     return Response({
         "success": True
+    })
+
+@api_view(["POST"])
+def register_user(request):
+    username = str(request.data.get("username", "")).strip()
+    password = str(request.data.get("password", ""))
+    role = str(request.data.get("role", "")).strip()
+
+    if not username or not password:
+        return Response(
+            {"success": False, "error": "Username and password are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if User.objects.filter(username=username).exists():
+        return Response(
+            {"success": False, "error": "Username already taken."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user = User.objects.create_user(
+        username=username,
+        password=password,
+        first_name=role,
+    )
+    token, _ = Token.objects.get_or_create(user=user)
+
+    return Response({
+        "success": True,
+        "token": token.key,
+        "username": user.username,
+        "role": role,
+    })
+
+@api_view(["POST"])
+def login_user(request):
+    username = str(request.data.get("username", "")).strip()
+    password = str(request.data.get("password", ""))
+    role = str(request.data.get("role", "")).strip()
+
+    user = authenticate(request, username=username, password=password)
+    if user is None:
+        return Response(
+            {"success": False, "error": "Invalid username or password."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    token, _ = Token.objects.get_or_create(user=user)
+    user_role = user.first_name or role
+
+    return Response({
+        "success": True,
+        "token": token.key,
+        "username": user.username,
+        "role": user_role,
     })
 
 @api_view(["POST"])

@@ -115,7 +115,7 @@ function Footer() {
               <WaterDropOutlinedIcon sx={{ color: "#fff", fontSize: 18 }} />
             </Box>
             <Typography sx={{ fontSize: 13.5, fontWeight: 500, color: "#fff", lineHeight: 1.35 }}>
-              Gujarat Water<br />Management Portal
+              Water<br />Management Portal
             </Typography>
           </Box>
 

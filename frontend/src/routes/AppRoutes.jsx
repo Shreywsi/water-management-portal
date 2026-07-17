@@ -12,6 +12,7 @@ import SalinityEntry from "../pages/crp/SalinityEntry";
 
 import CRPDashboard from "../pages/crp/CRPDashboard";
 import ResearcherDashboard from "../pages/researcher/ResearcherDashboard";
+import RegisterPage from "../pages/RegisterPage";
 
 import AdminLayout from "../layouts/AdminLayout";
 import MyWorkspace from "../pages/admin/MyWorkspace";
@@ -24,6 +25,7 @@ function AppRoutes() {
       <Routes>
 
         <Route path="/" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
       <Route
         path="/admin"
         element={

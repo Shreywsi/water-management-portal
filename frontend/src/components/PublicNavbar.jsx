@@ -42,7 +42,7 @@ function PublicNavbar() {
             color: "#fff",
             letterSpacing: "0.01em",
           }}>
-            Gujarat Water Management Portal
+            Water Management Portal
           </Typography>
         </Box>
 

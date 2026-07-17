@@ -14,6 +14,8 @@ import ScienceOutlinedIcon from "@mui/icons-material/ScienceOutlined";
 import WaterDropOutlinedIcon from "@mui/icons-material/WaterDropOutlined";
 import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlined";
 
+import API_BASE from "../config/api";
+
 const PANEL   = "#1B2A4A";
 const PANEL_DARK = "#152238";
 const ACCENT  = "#2A3F6F";
@@ -23,6 +25,7 @@ const ROLES = [
   { value: "admin",      label: "Admin",      Icon: ShieldOutlinedIcon },
   { value: "crp",        label: "CRP",        Icon: GroupsOutlinedIcon },
   { value: "researcher", label: "Researcher", Icon: ScienceOutlinedIcon },
+  { value: "farmer",     label: "Farmer",     Icon: WaterDropOutlinedIcon },
 ];
 
 const STATS = [
@@ -34,13 +37,47 @@ const STATS = [
 function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [role, setRole] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    if (!role) { setError("Please select a role."); return; }
-    const routes = { admin: "/admin", farmer: "/farmer", crp: "/crp", researcher: "/researcher" };
-    navigate(routes[role]);
+  const handleLogin = async () => {
+    setError("");
+
+    if (!username || !password || !role) {
+      setError("Please enter your username, password, and role.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/auth/login/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password, role }),
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        setError(data.error || "Login failed.");
+        setLoading(false);
+        return;
+      }
+
+      localStorage.setItem("authToken", data.token);
+      localStorage.setItem("authUsername", data.username);
+      localStorage.setItem("authRole", data.role);
+      const routes = { admin: "/admin", farmer: "/farmer", crp: "/crp", researcher: "/researcher" };
+      navigate(routes[data.role] || "/");
+    } catch (err) {
+      setError("Unable to connect to the backend. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -131,7 +168,7 @@ function LoginPage() {
           }}>
             <AccountBalanceOutlinedIcon sx={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }} />
             <Typography sx={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
-              Government of Gujarat — Water Resources Department
+              Water Resources Department
             </Typography>
           </Box>
         </Box>
@@ -159,6 +196,8 @@ function LoginPage() {
             <TextField
               fullWidth
               label={t("username")}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               margin="normal"
               sx={{
                 "& .MuiOutlinedInput-root": {
@@ -179,11 +218,13 @@ function LoginPage() {
               fullWidth
               label={t("password")}
               type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               margin="normal"
               sx={{
                 "& .MuiOutlinedInput-root": {
                   bgcolor: "#fff",
-                  "&.Mui-focused fieldset": { borderColor: ACCENT },
+                  "& .Mui-focused fieldset": { borderColor: ACCENT },
                 },
                 "& .MuiInputLabel-root.Mui-focused": { color: ACCENT },
               }}
@@ -264,7 +305,7 @@ function LoginPage() {
             }}>
               <AccountBalanceOutlinedIcon sx={{ fontSize: 13, color: "#9ca3af" }} />
               <Typography variant="caption" sx={{ color: "#9ca3af" }}>
-                Government of Gujarat — Water Resources Department
+                Water Resources Department
               </Typography>
             </Box>
 
