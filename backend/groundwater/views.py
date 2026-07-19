@@ -1,14 +1,18 @@
 import sys
 import os
 import pandas as pd
+import threading
+from datetime import datetime
+from ml.preprocess import preprocess_dataset
 from ml.retrain import retrain_model
 from django.conf import settings
 from .models import Dataset
+from ml.build_dataset import build_master_dataset
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 sys.path.append(BASE_DIR)
 
-from ml.predict import predict_groundwater
+from ml.predict import predict_water_balance
 
 from django.http import JsonResponse
 from django.conf import settings
@@ -21,9 +25,9 @@ from rest_framework.response import Response
 import subprocess
 from rest_framework.decorators import api_view
 from rest_framework.authtoken.models import Token
-
+from ml.forecast import forecast_water_balance
 from .gempy_service import build_geological_model
-
+from ml.predict import predict_water_balance
 import subprocess
 
 from pathlib import Path
@@ -40,6 +44,7 @@ from .models import (
 )
 from .modflow_service import run_modflow
 from .models import UserProfile
+from ml.dataset import set_active_dataset
 
 @api_view(["GET"])
 def dashboard(request):
@@ -889,15 +894,16 @@ def upload_gis_file(request):
         "shp_file": shp_file,
         "extracted_files": extracted_files,
     })
-def groundwater_prediction(request):
+@api_view(["GET"])
+def water_balance_prediction(request):
 
-    prediction = predict_groundwater()
+    prediction = predict_water_balance()
 
     return JsonResponse({
         "status": "success",
         "model": "LSTM",
-        "predicted_groundwater_depth": prediction,
-        "unit": "meters"
+        "predicted_water_balance": prediction,
+        "unit": "MCM"
     })
 
 @api_view(["POST"])
@@ -998,6 +1004,12 @@ def add_water_balance(request):
     )
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+def background_retrain():
+    try:
+        retrain_model()
+        print("✅ LSTM model retrained successfully.")
+    except Exception as e:
+        print(f"❌ Background training failed: {e}")
 
 @api_view(["POST"])
 def upload_dataset(request):
@@ -1018,79 +1030,86 @@ def upload_dataset(request):
         for chunk in file.chunks():
             destination.write(chunk)
 
-    df = pd.read_csv(file_path)
-    master_dataset = os.path.join(
-        settings.BASE_DIR,
-        "ml",
-        "data",
-        "processed",
-        "database_training_data.csv"
-    )
 
-    if os.path.exists(master_dataset):
+    
+    active_dataset = set_active_dataset(file_path)
 
-        existing_df = pd.read_csv(master_dataset)
+    try:
+        df = preprocess_dataset(active_dataset)
+        # ---------------------------------------
+        # Save processed dataset as active dataset
+        # ---------------------------------------
 
-        combined_df = pd.concat(
-            [existing_df, df],
-            ignore_index=True
+        active_dataset = os.path.join(
+            settings.BASE_DIR,
+            "ml",
+            "data",
+            "processed",
+            "database_training_data.csv"
         )
 
+        df.to_csv(
+            active_dataset,
+            index=False
+        )
+    
 
-        # Remove duplicate observations
-        # Same well + same date = same measurement
+    except Exception as e:
+        os.remove(file_path)
 
-        duplicate_columns = [
-            "time",
-            "well_name",
-            "village"
-        ]
-
-
-        # Only apply if columns exist
-        available_duplicates = [
-            col for col in duplicate_columns
-            if col in combined_df.columns
-        ]
-
-
-        if available_duplicates:
-            combined_df = combined_df.drop_duplicates(
-                subset=available_duplicates,
-                keep="last"
-            )
-        else:
-            combined_df = combined_df.drop_duplicates()
-        if "time" in combined_df.columns:
-            combined_df = combined_df.sort_values(
-                by="time"
-            )
-
-    else:
-
-        combined_df = df
-
-    combined_df.to_csv(
-        master_dataset,
-        index=False
+        return Response(
+            {
+                "success": False,
+                "message": str(e)
+            },
+            status=400
+        )
+    archive_dir = os.path.join(
+        settings.BASE_DIR,
+        "uploads",
+        "datasets",
+        "archive"
     )
+
+    os.makedirs(
+        archive_dir,
+        exist_ok=True
+    )
+
+    archive_path = os.path.join(
+        archive_dir,
+        file.name
+    )
+
+    import shutil
+
+    shutil.copy(
+        file_path,
+        archive_path
+    )
+
+    total_rows = build_master_dataset()
 
     dataset = Dataset.objects.create(
         name=file.name,
         file_name=file.name,
         file_path=file_path,
-        rows=len(df),
+        rows=total_rows,
         columns=len(df.columns),
     )
 
-    training_result = retrain_model()
+    threading.Thread(
+        target=background_retrain,
+        daemon=True
+    ).start()
 
     return Response({
         "success": True,
         "dataset_id": dataset.id,
         "file_name": file.name,
-        "training": training_result
+        "message": "Dataset uploaded successfully. Model retraining started in background."
     })
+
 @api_view(["POST"])
 def retrain_lstm(request):
 
@@ -1100,3 +1119,114 @@ def retrain_lstm(request):
         return Response(result)
 
     return Response(result, status=500)
+
+@api_view(["GET"])
+def ai_dashboard(request):
+
+    from ml.predict import predict_water_balance
+
+    master_dataset = os.path.join(
+        settings.BASE_DIR,
+        "ml",
+        "data",
+        "processed",
+        "database_training_data.csv"
+    )
+
+    rows = 0
+
+    if os.path.exists(master_dataset):
+        df = pd.read_csv(master_dataset)
+        rows = len(df)
+
+    model_path = os.path.join(
+        settings.BASE_DIR,
+        "ml",
+        "saved_models",
+        "water_balance_model.keras"
+    )
+
+    scaler_path = os.path.join(
+        settings.BASE_DIR,
+        "ml",
+        "saved_models",
+        "water_balance_scaler.pkl"
+    )
+
+    model_ready = (
+        os.path.exists(model_path)
+        and
+        os.path.exists(scaler_path)
+    )
+
+    prediction = None
+
+    if model_ready:
+        try:
+            prediction = predict_water_balance()
+        except:
+            prediction = None
+
+    last_training = None
+
+    if model_ready:
+        last_training = datetime.fromtimestamp(
+            os.path.getmtime(model_path)
+        ).strftime("%d %b %Y %H:%M")
+
+        dataset_count = Dataset.objects.count()
+
+        return Response({
+
+            "summary": {
+
+                "training_rows": rows,
+
+                "dataset_count": dataset_count,
+
+                "model_ready": model_ready,
+
+                "last_training": last_training,
+
+                "prediction": prediction
+
+            }
+
+        })
+
+@api_view(["GET"])
+def forecast_api(request, period):
+
+    periods = {
+        "monthly": 1,
+        "quarterly": 3,
+        "halfyearly": 6,
+        "annual": 12,
+        "10years": 120,
+        "30years": 360,
+    }
+
+    if period not in periods:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid forecast period."
+            },
+            status=400
+        )
+
+    steps = periods[period]
+
+    result = forecast_water_balance(steps)
+
+    return Response({
+
+        "success": True,
+
+        "period": period,
+
+        "steps": steps,
+
+        **result
+
+    })

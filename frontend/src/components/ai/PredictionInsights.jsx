@@ -30,7 +30,7 @@ export default function PredictionInsights({ prediction }) {
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 6 }}>
             <Typography variant="body2" color="text.secondary">
-              Predicted Groundwater Depth
+              Predicted Water Balance
             </Typography>
 
             <Typography

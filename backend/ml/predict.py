@@ -1,95 +1,71 @@
-import os
+import json
 import joblib
 import numpy as np
-import pandas as pd
-from ml.dataset import get_active_dataset
+from pathlib import Path
 
 from tensorflow.keras.models import load_model
 
-# Base directory of the ML module
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+from ml.dataset import get_active_dataset
+from ml.preprocess import preprocess_dataset
 
-MODEL_PATH = os.path.join(BASE_DIR, "saved_models", "groundwater_model.keras")
-SCALER_PATH = os.path.join(BASE_DIR, "saved_models", "scaler.pkl")
-DATA_PATH = os.path.join(
-    BASE_DIR,
-    "..",
-    "uploads",
-    "datasets",
-    "active",
-    "training_data.csv"
-)
+BASE_DIR = Path(__file__).resolve().parent
+
+MODEL_PATH = BASE_DIR / "saved_models" / "water_balance_model.keras"
+SCALER_PATH = BASE_DIR / "saved_models" / "water_balance_scaler.pkl"
+CONFIG_PATH = BASE_DIR / "saved_models" / "model_config.json"
 
 
-def predict_groundwater():
+def predict_water_balance():
+
+    if not MODEL_PATH.exists():
+        raise Exception("Model has not been trained yet.")
+
+    if not SCALER_PATH.exists():
+        raise Exception("Scaler has not been created yet.")
+
+    if not CONFIG_PATH.exists():
+        raise Exception("model_config.json not found.")
 
     model = load_model(MODEL_PATH)
     scaler = joblib.load(SCALER_PATH)
 
-    df = pd.read_csv(get_active_dataset())
+    with open(CONFIG_PATH) as f:
+        config = json.load(f)
 
-    # Convert uploaded CSV format
-    if "water_level_m" in df.columns:
-        df["groundwater_depth"] = df["water_level_m"]
+    features = config["features"]
+    sequence_length = config["sequence_length"]
+    target_index = config["target_index"]
 
-    if "water_balance" not in df.columns:
-        df["water_balance"] = 0
-
-
-    # Handle missing values
-    df["rainfall_mm"] = df["rainfall_mm"].fillna(0)
-
-    df["groundwater_depth"] = df["groundwater_depth"].fillna(
-        df["groundwater_depth"].mean()
-    )
-
-    df["water_balance"] = df["water_balance"].fillna(0)
-
-
-    features = [
-        "rainfall_mm",
-        "water_balance",
-        "groundwater_depth"
-    ]
-
+    df = preprocess_dataset(get_active_dataset())
 
     data = df[features].values
 
-
     scaled = scaler.transform(data)
 
+    if len(scaled) < sequence_length:
+        raise Exception(
+            f"Dataset must contain at least {sequence_length} rows."
+        )
 
-    # Last 6 months sequence
-    sequence = scaled[-6:]
+    sequence = scaled[-sequence_length:]
 
     X = np.array([sequence])
-
 
     prediction_scaled = model.predict(
         X,
         verbose=0
-    )
+    )[0][0]
 
+    dummy = sequence[-1].copy()
 
-    # Convert prediction back
-    predicted_depth_scaled = prediction_scaled[0][0]
+    dummy[target_index] = prediction_scaled
 
-
-    # Manual inverse scaling
-    groundwater_min = scaler.data_min_[2]
-    groundwater_max = scaler.data_max_[2]
-
-
-    prediction = (
-        predicted_depth_scaled *
-        (groundwater_max - groundwater_min)
-        + groundwater_min
-    )
-
+    prediction = scaler.inverse_transform(
+        [dummy]
+    )[0][target_index]
 
     return round(float(prediction), 2)
 
 
 if __name__ == "__main__":
-    prediction = predict_groundwater()
-    print(f"Predicted Groundwater Depth: {prediction} meters")
+    print(predict_water_balance())

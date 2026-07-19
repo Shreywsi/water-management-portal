@@ -20,12 +20,14 @@ from .views import (
     upload_gis_file,
     run_gempy,
     run_modflow_view,
-    groundwater_prediction,
+    water_balance_prediction,
     login_user,
     register,
     add_water_balance,
     upload_dataset,
     retrain_lstm,
+    ai_dashboard,
+    forecast_api,
 
 )
 
@@ -51,9 +53,11 @@ urlpatterns = [
     path("gis/upload/", upload_gis_file),
     path("run-gempy/", run_gempy),
     path("run-modflow/", run_modflow_view),
-    path("predict/", groundwater_prediction),
+    path("ml/predict/", water_balance_prediction),
     path("auth/register/", register),
     path("water-balance/add/", add_water_balance),
     path("ml/upload-dataset/", upload_dataset),
     path("ml/retrain/", retrain_lstm),
+    path("ml/dashboard/",ai_dashboard,name="ai-dashboard",),
+    path("ml/forecast/<str:period>/",forecast_api,),
 ]

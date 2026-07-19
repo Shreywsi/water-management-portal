@@ -21,6 +21,8 @@ import AIPrediction from "../pages/admin/AIPrediction";
 
 import SignupPage from "../pages/SignupPage"
 
+
+
 function AppRoutes() {
   return (
     <BrowserRouter>
@@ -53,6 +55,7 @@ function AppRoutes() {
           </AdminLayout>
         }
       />
+      
 
         <Route path="/farmer" element={<FarmerDashboard />} />
         <Route path="/farmer/water-table" element={<WaterTableEntry />} />

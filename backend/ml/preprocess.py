@@ -1,70 +1,274 @@
 import pandas as pd
 import numpy as np
 
-# Make random values reproducible
-np.random.seed(42)
 
-# Load rainfall data
-df = pd.read_csv("ml/data/raw/rainfall.csv")
+def preprocess_dataset(csv_path):
 
-# Keep only one station for the prototype
-df = df[df["station_name"] == "Mundra"].copy()
+    df = pd.read_csv(csv_path)
 
-# Convert date
-df["time"] = pd.to_datetime(df["time"])
+    # -------------------------
+    # Standardize column names
+    # -------------------------
 
-# Sort chronologically
-df = df.sort_values("time").reset_index(drop=True)
-
-# -----------------------------
-# Generate Groundwater Depth
-# -----------------------------
-groundwater_depth = []
-depth = 15.0  # initial depth (meters)
-
-for rainfall in df["rainfall_mm"]:
-
-    # High rainfall generally reduces groundwater depth
-    recharge = rainfall * 0.015
-
-    # Natural seasonal depletion
-    depletion = np.random.uniform(0.2, 0.6)
-
-    depth = depth + depletion - recharge
-
-    # Add measurement noise
-    depth += np.random.normal(0, 0.08)
-
-    # Keep realistic range
-    depth = np.clip(depth, 5, 25)
-
-    groundwater_depth.append(round(depth, 2))
-
-df["groundwater_depth"] = groundwater_depth
-
-# -----------------------------
-# Generate Water Balance
-# -----------------------------
-water_balance = []
-
-for rainfall in df["rainfall_mm"]:
-
-    balance = (
-        rainfall
-        - np.random.uniform(15, 45)
-        + np.random.normal(0, 5)
+    df.columns = (
+        df.columns
+        .str.strip()
+        .str.lower()
+        .str.replace(" ", "_")
     )
 
-    water_balance.append(round(balance, 2))
+    # -------------------------
+    # Required columns
+    # -------------------------
 
-df["water_balance"] = water_balance
+    # -------------------------
+    # Required columns
+    # -------------------------
 
-# Save processed dataset
-df.to_csv(
-    "ml/data/processed/training_data.csv",
-    index=False
+    required = [
+        "time",
+        "rainfall_mm"
+    ]
+
+    missing = [
+        col
+        for col in required
+        if col not in df.columns
+    ]
+
+    if missing:
+        raise Exception(
+            f"Missing required columns: {missing}"
+        )
+
+    # -------------------------
+    # Groundwater Depth
+    # -------------------------
+
+    if "groundwater_depth" not in df.columns:
+
+        if "water_level_m" in df.columns:
+
+            df["groundwater_depth"] = df["water_level_m"]
+
+        else:
+
+            raise Exception(
+                "Dataset must contain either "
+                "'groundwater_depth' or "
+                "'water_level_m'."
+            )
+
+    # -------------------------
+    # Date
+    # -------------------------
+
+    df["time"] = pd.to_datetime(
+        df["time"],
+        errors="coerce"
+    )
+
+    df = df.dropna(subset=["time"])
+
+    df = df.sort_values("time")
+
+    # -------------------------
+    # Numeric conversion
+    # -------------------------
+
+    numeric_columns = [
+
+        "rainfall_mm",
+
+        "groundwater_depth",
+
+        "pumping_hours",
+
+        "recharge_mm",
+
+        "evapotranspiration_mm",
+
+        "surface_inflow",
+
+        "surface_outflow"
+
+    ]
+
+    for col in numeric_columns:
+
+        if col in df.columns:
+
+            df[col] = pd.to_numeric(
+                df[col],
+                errors="coerce"
+            )
+
+    # -------------------------
+    # Fill missing rainfall
+    # -------------------------
+
+    df["rainfall_mm"] = (
+        df["rainfall_mm"]
+        .fillna(0)
+    )
+
+    # -------------------------
+    # Groundwater
+    # -------------------------
+
+    df["groundwater_depth"] = pd.to_numeric(
+        df["groundwater_depth"],
+        errors="coerce"
+    )
+
+    df["groundwater_depth"] = df[
+        "groundwater_depth"
+    ].fillna(
+        df["groundwater_depth"].median()
+    )
+
+    # -------------------------
+    # Pumping
+    # -------------------------
+
+    if "pumping_hours" not in df.columns:
+
+        df["pumping_hours"] = 0
+
+    df["pumping_hours"] = (
+
+        df["pumping_hours"]
+
+        .fillna(0)
+
+    )
+
+    # =====================================================
+    # Estimate missing hydrological variables
+    # =====================================================
+
+    if "recharge_mm" not in df.columns:
+
+        df["recharge_mm"] = (
+
+            df["rainfall_mm"]
+
+            * 0.18
+
+        )
+
+    if "evapotranspiration_mm" not in df.columns:
+
+        df["evapotranspiration_mm"] = (
+
+            df["rainfall_mm"]
+
+            * 0.32
+
+        )
+
+    if "surface_inflow" not in df.columns:
+
+        df["surface_inflow"] = (
+
+            df["rainfall_mm"]
+
+            * 0.08
+
+        )
+
+    if "surface_outflow" not in df.columns:
+
+        df["surface_outflow"] = (
+
+            df["rainfall_mm"]
+
+            * 0.04
+
+        )
+
+    # -------------------------
+    # Pump abstraction
+    # -------------------------
+
+    # Adjustable later
+
+    DEFAULT_PUMP_RATE = 25
+
+    if "pump_rate" in df.columns:
+
+        df["pump_rate"] = pd.to_numeric(
+            df["pump_rate"],
+            errors="coerce"
+        ).fillna(DEFAULT_PUMP_RATE)
+
+    else:
+
+        df["pump_rate"] = DEFAULT_PUMP_RATE
+
+    df["pump_abstraction"] = (
+        df["pumping_hours"] *
+        df["pump_rate"]
+    )
+
+    # -------------------------
+    # Deep Percolation
+    # -------------------------
+
+    df["deep_percolation"] = (
+    df["rainfall_mm"] * 0.06
 )
 
-print(df.head())
+    # =====================================================
+    # Water Balance
+    # =====================================================
 
-print("\nDataset saved successfully!")
+    inflow = (
+
+        df["rainfall_mm"]
+
+        + df["recharge_mm"]
+
+        + df["surface_inflow"]
+
+    )
+
+    outflow = (
+
+    df["pump_abstraction"]
+
+    + df["evapotranspiration_mm"]
+
+    + df["surface_outflow"]
+
+    + df["deep_percolation"]
+
+)
+
+    df["water_balance"] = (
+
+        inflow
+
+        - outflow
+
+    )
+
+    # -------------------------
+    # Seasonality
+    # -------------------------
+
+    df["month"] = df["time"].dt.month
+
+    df["month_sin"] = np.sin(
+
+        2 * np.pi * df["month"] / 12
+
+    )
+
+    df["month_cos"] = np.cos(
+
+        2 * np.pi * df["month"] / 12
+
+    )
+
+    return df

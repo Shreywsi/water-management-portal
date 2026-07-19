@@ -1,0 +1,12 @@
+{
+    "sequence_length": 6,
+    "features": [
+        "rainfall_mm",
+        "groundwater_depth",
+        "water_balance",
+        "month_sin",
+        "month_cos"
+    ],
+    "target": "water_balance",
+    "target_index": 2
+}

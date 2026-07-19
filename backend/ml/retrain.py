@@ -1,5 +1,6 @@
 import subprocess
 import os
+import sys
 
 
 def retrain_model():
@@ -10,17 +11,13 @@ def retrain_model():
         )
     )
 
-    train_file = os.path.join(
-        BASE_DIR,
-        "ml",
-        "train.py"
-    )
-
     result = subprocess.run(
         [
-            "python",
-            train_file
+            sys.executable,
+            "-m",
+            "ml.train"
         ],
+        cwd=BASE_DIR,
         capture_output=True,
         text=True
     )
@@ -28,8 +25,8 @@ def retrain_model():
     if result.returncode != 0:
         raise Exception(result.stderr)
 
-
     return {
         "success": True,
-        "message": "Model retrained successfully"
+        "message": "Model retrained successfully",
+        "output": result.stdout
     }
