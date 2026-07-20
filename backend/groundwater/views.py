@@ -1014,21 +1014,47 @@ def add_water_balance(request):
             "delta_s": delta_s,
         }
     )
+from groundwater.models import WaterBalance
+from django.db.models import Avg
 @api_view(["GET"])
 def water_balance_history(request):
 
-    history = (
-        WaterBalance.objects
-        .all()
-        .order_by("-created_at")
-    )
+    records = WaterBalance.objects.order_by("-created_at")
 
-    serializer = WaterBalanceSerializer(
-        history,
-        many=True
-    )
+    data = []
 
-    return Response(serializer.data)
+    for wb in records:
+
+        data.append({
+            "id": wb.id,
+            "date": wb.created_at.date(),
+            "time": wb.created_at.strftime("%H:%M:%S"),
+            "delta_s": wb.delta_s,
+            "status": "Recharge" if wb.delta_s >= 0 else "Depletion",
+            "Rr": wb.Rr,
+            "Re": wb.Re,
+            "Ri": wb.Ri,
+            "I": wb.I,
+            "Si": wb.Si,
+            "Se": wb.Se,
+            "O": wb.O,
+            "Et": wb.Et,
+            "Dp": wb.Dp,
+        })
+
+    summary = {
+        "total_records": records.count(),
+        "average_delta_s": records.aggregate(
+            Avg("delta_s")
+        )["delta_s__avg"] or 0,
+        "recharge_days": records.filter(delta_s__gte=0).count(),
+        "depletion_days": records.filter(delta_s__lt=0).count(),
+    }
+
+    return Response({
+        "summary": summary,
+        "records": data
+    })
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 def background_retrain():
