@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-
+import Sidebar from "../../components/Sidebar";
 import {
   Card,
   Typography,
@@ -49,7 +49,17 @@ export default function WaterBalanceHistory() {
 );
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ display: "flex", minHeight: "100vh" }}>
+
+        <Sidebar />
+
+        <Box
+        sx={{
+            flex: 1,
+            p: 3,
+            bgcolor: "#f5f7fb",
+        }}
+        >
 
       <Typography variant="h4" fontWeight="bold" gutterBottom>
         Water Balance History
@@ -232,6 +242,8 @@ export default function WaterBalanceHistory() {
 
       </Card>
 
-    </Box>
-  );
+        </Box>
+
+  </Box>
+);
 }
