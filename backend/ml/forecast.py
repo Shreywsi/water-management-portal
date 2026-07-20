@@ -59,6 +59,33 @@ def forecast_water_balance(steps):
 
         next_row[TARGET_INDEX] = pred_scaled
 
+        month_sin_index = FEATURES.index("month_sin")
+        month_cos_index = FEATURES.index("month_cos")
+
+        angle = np.arctan2(
+            next_row[month_sin_index],
+            next_row[month_cos_index]
+        )
+
+        angle += (2 * np.pi / 12)
+
+        next_row[month_sin_index] = np.sin(angle)
+        next_row[month_cos_index] = np.cos(angle)
+
+        # Advance seasonality
+        month_sin_index = FEATURES.index("month_sin")
+        month_cos_index = FEATURES.index("month_cos")
+
+        angle = np.arctan2(
+            next_row[month_sin_index],
+            next_row[month_cos_index]
+        )
+
+        angle += (2 * np.pi / 12)
+
+        next_row[month_sin_index] = np.sin(angle)
+        next_row[month_cos_index] = np.cos(angle)
+
         prediction = SCALER.inverse_transform(
             [next_row]
         )[0][TARGET_INDEX]

@@ -1,6 +1,7 @@
 import sys
 import os
 import pandas as pd
+import json
 import threading
 from datetime import datetime
 from ml.preprocess import preprocess_dataset
@@ -959,7 +960,7 @@ def register(request):
 @csrf_exempt
 @api_view(["POST"])
 def add_water_balance(request):
-
+    from threading import Thread
     data = request.data
 
     try:
@@ -994,6 +995,15 @@ def add_water_balance(request):
         Dp=Dp,
         delta_s=delta_s,
     )
+    from ml.dataset_export import export_database_to_training_dataset
+    from ml.train import train_model
+
+    export_database_to_training_dataset()
+    Thread(
+    target=train_model,
+    daemon=True
+).start()
+    
 
     return Response(
         {
@@ -1031,8 +1041,19 @@ def upload_dataset(request):
             destination.write(chunk)
 
 
-    
+    from ml.validate import validate_dataset
+
+    validation = validate_dataset(file_path)
+
+    if not validation["valid"]:
+        return Response(
+            validation,
+            status=400
+        )   
     active_dataset = set_active_dataset(file_path)
+    from ml.retrain import retrain_model
+
+    validation["active_dataset"] = active_dataset
 
     try:
         df = preprocess_dataset(active_dataset)
@@ -1104,11 +1125,26 @@ def upload_dataset(request):
     ).start()
 
     return Response({
-        "success": True,
-        "dataset_id": dataset.id,
-        "file_name": file.name,
-        "message": "Dataset uploaded successfully. Model retraining started in background."
-    })
+
+    "success": True,
+
+    "message": "Dataset uploaded successfully.",
+
+    "dataset": {
+
+        "rows": validation["rows"],
+
+        "columns": validation["columns"],
+
+        "date_range": validation["date_range"],
+
+        "missing_values": validation["missing_values"],
+
+        "ready_for_training": True
+
+    }
+
+})
 
 @api_view(["POST"])
 def retrain_lstm(request):
@@ -1164,8 +1200,43 @@ def ai_dashboard(request):
     if model_ready:
         try:
             prediction = predict_water_balance()
-        except:
+        except Exception:
             prediction = None
+
+    metrics = {}
+
+    metrics_path = os.path.join(
+        settings.BASE_DIR,
+        "ml",
+        "saved_models",
+        "model_metrics.json"
+    )
+
+    if os.path.exists(metrics_path):
+        with open(metrics_path) as f:
+            metrics = json.load(f)
+
+    rmse = metrics.get("water_balance", {}).get("rmse")
+    mae = metrics.get("water_balance", {}).get("mae")
+    r2 = metrics.get("water_balance", {}).get("r2")
+
+    train_samples = metrics.get("train_samples")
+    test_samples = metrics.get("test_samples")
+
+    confidence = None
+
+    if r2 is not None:
+        confidence = round(
+            max(0, min(r2 * 100, 100)),
+            1
+        )
+
+    forecast_min = None
+    forecast_max = None
+
+    if prediction is not None and rmse is not None:
+        forecast_min = round(prediction - rmse, 2)
+        forecast_max = round(prediction + rmse, 2)
 
     last_training = None
 
@@ -1174,25 +1245,25 @@ def ai_dashboard(request):
             os.path.getmtime(model_path)
         ).strftime("%d %b %Y %H:%M")
 
-        dataset_count = Dataset.objects.count()
+    dataset_count = Dataset.objects.count()
 
-        return Response({
-
-            "summary": {
-
-                "training_rows": rows,
-
-                "dataset_count": dataset_count,
-
-                "model_ready": model_ready,
-
-                "last_training": last_training,
-
-                "prediction": prediction
-
-            }
-
-        })
+    return Response({
+        "summary": {
+            "training_rows": rows,
+            "dataset_count": dataset_count,
+            "model_ready": model_ready,
+            "last_training": last_training,
+            "prediction": prediction,
+            "confidence": confidence,
+            "forecast_min": forecast_min,
+            "forecast_max": forecast_max,
+            "rmse": rmse,
+            "mae": mae,
+            "r2": r2,
+            "train_samples": train_samples,
+            "test_samples": test_samples,
+        }
+    })
 
 @api_view(["GET"])
 def forecast_api(request, period):
@@ -1221,12 +1292,13 @@ def forecast_api(request, period):
 
     return Response({
 
-        "success": True,
+    "success": True,
 
-        "period": period,
+    "period": period,
 
-        "steps": steps,
+    "steps": steps,
 
-        **result
+    **result
 
-    })
+})
+

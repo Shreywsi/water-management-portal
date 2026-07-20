@@ -23,271 +23,279 @@ from ml.dataset import get_active_dataset
 # ---------------------------------------------------
 # Create save directory
 # ---------------------------------------------------
+def train_model():
+    SAVE_DIR = "ml/saved_models"
+    os.makedirs(SAVE_DIR, exist_ok=True)
 
-SAVE_DIR = "ml/saved_models"
-os.makedirs(SAVE_DIR, exist_ok=True)
+    # ---------------------------------------------------
+    # Load & preprocess dataset
+    # ---------------------------------------------------
 
-# ---------------------------------------------------
-# Load & preprocess dataset
-# ---------------------------------------------------
+    dataset_path = get_active_dataset()
 
-dataset_path = get_active_dataset()
+    df = preprocess_dataset(dataset_path)
 
-df = preprocess_dataset(dataset_path)
+    if len(df) < 20:
+        raise Exception(
+            "Need at least 20 rows to train the LSTM model."
+        )
+    
 
-features = [
-    "rainfall_mm",
-    "groundwater_depth",
-    "water_balance",
-    "month_sin",
-    "month_cos"
-]
+    features = [
+        "rainfall_mm",
+        "groundwater_depth",
+        "water_balance",
+        "month_sin",
+        "month_cos"
+    ]
 
-data = df[features].values
+    data = df[features].values
 
-# ---------------------------------------------------
-# Scale
-# ---------------------------------------------------
+    # ---------------------------------------------------
+    # Scale
+    # ---------------------------------------------------
 
-scaler = MinMaxScaler()
+    scaler = MinMaxScaler()
 
-scaled_data = scaler.fit_transform(data)
+    scaled_data = scaler.fit_transform(data)
 
-# ---------------------------------------------------
-# Sequence settings
-# ---------------------------------------------------
+    # ---------------------------------------------------
+    # Sequence settings
+    # ---------------------------------------------------
 
-SEQUENCE_LENGTH = 6
+    SEQUENCE_LENGTH = 6
 
-training_config = {
-    "sequence_length": SEQUENCE_LENGTH,
-    "features": features,
-    "target": "water_balance",
-    "target_index": features.index("water_balance")
-}
+    training_config = {
+        "sequence_length": SEQUENCE_LENGTH,
+        "features": features,
+        "target": "water_balance",
+        "target_index": features.index("water_balance")
+    }
 
-with open(
-    os.path.join(SAVE_DIR, "model_config.json"),
-    "w"
-) as f:
+    with open(
+        os.path.join(SAVE_DIR, "model_config.json"),
+        "w"
+    ) as f:
 
-    json.dump(
-        training_config,
-        f,
-        indent=4
+        json.dump(
+            training_config,
+            f,
+            indent=4
+        )
+
+    # ---------------------------------------------------
+    # Create sequences
+    # ---------------------------------------------------
+
+    X = []
+    y = []
+
+    for i in range(SEQUENCE_LENGTH, len(scaled_data)):
+
+        X.append(
+            scaled_data[
+                i - SEQUENCE_LENGTH:i
+            ]
+        )
+
+        # Target:
+        # Water Balance (feature index 2)
+
+        y.append(
+            scaled_data[
+                i,
+                training_config["target_index"]
+            ]
     )
 
-# ---------------------------------------------------
-# Create sequences
-# ---------------------------------------------------
+    X = np.array(X)
+    y = np.array(y)
 
-X = []
-y = []
+    # ---------------------------------------------------
+    # Train/Test Split
+    # ---------------------------------------------------
 
-for i in range(SEQUENCE_LENGTH, len(scaled_data)):
-
-    X.append(
-        scaled_data[
-            i - SEQUENCE_LENGTH:i
-        ]
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=0.2,
+        shuffle=False
     )
 
-    # Target:
-    # Water Balance (feature index 2)
+    print(f"Training samples : {len(X_train)}")
+    print(f"Testing samples  : {len(X_test)}")
 
-    y.append(
-        scaled_data[
-            i,
-            training_config["target_index"]
-        ]
-)
+    # ---------------------------------------------------
+    # Build Model
+    # ---------------------------------------------------
 
-X = np.array(X)
-y = np.array(y)
+    model = Sequential()
 
-# ---------------------------------------------------
-# Train/Test Split
-# ---------------------------------------------------
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.2,
-    shuffle=False
-)
-
-print(f"Training samples : {len(X_train)}")
-print(f"Testing samples  : {len(X_test)}")
-
-# ---------------------------------------------------
-# Build Model
-# ---------------------------------------------------
-
-model = Sequential()
-
-model.add(
-    LSTM(
-        64,
-        input_shape=X_train.shape[1:]
+    model.add(
+        LSTM(
+            64,
+            input_shape=X_train.shape[1:]
+        )
     )
-)
 
-model.add(
-    Dense(
-        32,
-        activation="relu"
+    model.add(
+        Dense(
+            32,
+            activation="relu"
+        )
     )
-)
 
-# Predict Water Balance
+    # Predict Water Balance
 
-model.add(Dense(1))
+    model.add(Dense(1))
 
-model.compile(
-    optimizer="adam",
-    loss="mse"
-)
+    model.compile(
+        optimizer="adam",
+        loss="mse"
+    )
 
-model.summary()
+    model.summary()
 
-# ---------------------------------------------------
-# Train
-# ---------------------------------------------------
+    # ---------------------------------------------------
+    # Train
+    # ---------------------------------------------------
 
-early_stop = EarlyStopping(
-    monitor="val_loss",
-    patience=10,
-    restore_best_weights=True
-)
+    early_stop = EarlyStopping(
+        monitor="val_loss",
+        patience=10,
+        restore_best_weights=True
+    )
 
-history = model.fit(
-    X_train,
-    y_train,
-    validation_data=(
+    history = model.fit(
+        X_train,
+        y_train,
+        validation_data=(
+            X_test,
+            y_test
+        ),
+        epochs=100,
+        batch_size=8,
+        callbacks=[early_stop],
+        verbose=1
+    )
+
+    # ---------------------------------------------------
+    # Save training history
+    # ---------------------------------------------------
+
+    pd.DataFrame(
+        history.history
+    ).to_csv(
+        os.path.join(
+            SAVE_DIR,
+            "training_history.csv"
+        ),
+        index=False
+    )
+
+    # ---------------------------------------------------
+    # Evaluate
+    # ---------------------------------------------------
+
+    predictions = model.predict(
         X_test,
-        y_test
-    ),
-    epochs=100,
-    batch_size=8,
-    callbacks=[early_stop],
-    verbose=1
-)
+        verbose=0
+    )
 
-# ---------------------------------------------------
-# Save training history
-# ---------------------------------------------------
+    dummy_pred = np.zeros(
+        (len(predictions), len(features))
+    )
 
-pd.DataFrame(
-    history.history
-).to_csv(
-    os.path.join(
-        SAVE_DIR,
-        "training_history.csv"
-    ),
-    index=False
-)
+    dummy_true = np.zeros(
+        (len(y_test), len(features))
+    )
 
-# ---------------------------------------------------
-# Evaluate
-# ---------------------------------------------------
+    target_index = training_config["target_index"]
 
-predictions = model.predict(
-    X_test,
-    verbose=0
-)
+    dummy_pred[:, target_index] = predictions.flatten()
+    dummy_true[:, target_index] = y_test
 
-dummy_pred = np.zeros(
-    (len(predictions), len(features))
-)
+    pred_original = scaler.inverse_transform(dummy_pred)
+    true_original = scaler.inverse_transform(dummy_true)
 
-dummy_true = np.zeros(
-    (len(y_test), len(features))
-)
+    pred_water_balance = pred_original[:, target_index]
+    true_water_balance = true_original[:, target_index]
+    metrics = {
 
-target_index = training_config["target_index"]
+        "water_balance": {
 
-dummy_pred[:, target_index] = predictions.flatten()
-dummy_true[:, target_index] = y_test
+            "rmse": float(
+                np.sqrt(
+                    mean_squared_error(
+                        true_water_balance,
+                        pred_water_balance
+                    )
+                )
+            ),
 
-pred_original = scaler.inverse_transform(dummy_pred)
-true_original = scaler.inverse_transform(dummy_true)
+            "mae": float(
+                mean_absolute_error(
+                    true_water_balance,
+                    pred_water_balance
+                )
+            ),
 
-pred_water_balance = pred_original[:, target_index]
-true_water_balance = true_original[:, target_index]
-metrics = {
-
-    "water_balance": {
-
-        "rmse": float(
-            np.sqrt(
-                mean_squared_error(
+            "r2": float(
+                r2_score(
                     true_water_balance,
                     pred_water_balance
                 )
             )
-        ),
 
-        "mae": float(
-            mean_absolute_error(
-                true_water_balance,
-                pred_water_balance
-            )
-        ),
+        },
 
-        "r2": float(
-            r2_score(
-                true_water_balance,
-                pred_water_balance
-            )
+        "train_samples": len(X_train),
+
+        "test_samples": len(X_test)
+
+    }
+
+    # ---------------------------------------------------
+    # Save model
+    # ---------------------------------------------------
+
+    model.save(
+        os.path.join(
+            SAVE_DIR,
+            "water_balance_model.keras"
+        )
+    )
+
+    joblib.dump(
+        scaler,
+        os.path.join(
+            SAVE_DIR,
+            "water_balance_scaler.pkl"
+        )
+    )
+
+    with open(
+        os.path.join(
+            SAVE_DIR,
+            "model_metrics.json"
+        ),
+        "w"
+    ) as f:
+
+        json.dump(
+            metrics,
+            f,
+            indent=4
         )
 
-    },
+    # ---------------------------------------------------
+    # Done
+    # ---------------------------------------------------
 
-    "train_samples": len(X_train),
+    print("\nTraining Complete")
 
-    "test_samples": len(X_test)
+    print("Model saved successfully!")
 
-}
-
-# ---------------------------------------------------
-# Save model
-# ---------------------------------------------------
-
-model.save(
-    os.path.join(
-        SAVE_DIR,
-        "water_balance_model.keras"
-    )
-)
-
-joblib.dump(
-    scaler,
-    os.path.join(
-        SAVE_DIR,
-        "water_balance_scaler.pkl"
-    )
-)
-
-with open(
-    os.path.join(
-        SAVE_DIR,
-        "model_metrics.json"
-    ),
-    "w"
-) as f:
-
-    json.dump(
-        metrics,
-        f,
-        indent=4
-    )
-
-# ---------------------------------------------------
-# Done
-# ---------------------------------------------------
-
-print("\nTraining Complete")
-
-print("Model saved successfully!")
-
-print(json.dumps(metrics, indent=4))
+    print(json.dumps(metrics, indent=4))
+if __name__ == "__main__":
+    train_model()

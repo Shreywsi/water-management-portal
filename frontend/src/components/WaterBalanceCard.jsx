@@ -1,7 +1,10 @@
+import axios from "axios";
 import { useMemo, useState } from "react";
 import {
   Box,
   Card,
+  Switch,
+  FormControlLabel,
   Typography,
   Button,
   Collapse,
@@ -103,33 +106,33 @@ function BalanceGauge({ inflow, outflow }) {
   return (
     <Box sx={{ width: "100%" }}>
       <Stack
-  direction="row"
-  spacing={2}   // increase to 3 or 4 if you want more space
-  sx={{ mb: 0.5 }}
->
-  <Typography
-    variant="caption"
-    sx={{
-      color: PALETTE.recharge,
-      fontWeight: 700,
-      letterSpacing: 0.4,
-    }}
-  >
-    INFLOW
-  </Typography>
+        direction="row"
+        spacing={2} // increase to 3 or 4 if you want more space
+        sx={{ mb: 0.5 }}
+      >
+        <Typography
+          variant="caption"
+          sx={{
+            color: PALETTE.recharge,
+            fontWeight: 700,
+            letterSpacing: 0.4
+          }}
+        >
+          INFLOW
+        </Typography>
 
- <Typography
-  variant="caption"
-  sx={{
-    ml: 2, // 16px gap
-    color: PALETTE.depletion,
-    fontWeight: 700,
-    letterSpacing: 0.4,
-  }}
->
-  OUTFLOW
-</Typography>
-</Stack>
+        <Typography
+          variant="caption"
+          sx={{
+            ml: 2, // 16px gap
+            color: PALETTE.depletion,
+            fontWeight: 700,
+            letterSpacing: 0.4
+          }}
+        >
+          OUTFLOW
+        </Typography>
+      </Stack>
       <Box
         sx={{
           position: "relative",
@@ -201,10 +204,7 @@ function ComponentTable({ title, icon, fields, values, onFieldChange, accent, ac
         <Table size="small">
           <TableBody>
             {fields.map((f) => (
-              <TableRow
-                key={f.key}
-                sx={{ "&:last-of-type td": { borderBottom: 0 } }}
-              >
+              <TableRow key={f.key} sx={{ "&:last-of-type td": { borderBottom: 0 } }}>
                 <TableCell sx={{ color: PALETTE.inkMuted, fontSize: 13.5, py: 1 }}>
                   <Box component="span" sx={{ fontFamily: NUMERIC_FONT, fontWeight: 700, color: PALETTE.ink, mr: 0.75 }}>
                     {f.key}
@@ -243,10 +243,7 @@ function ComponentTable({ title, icon, fields, values, onFieldChange, accent, ac
         <Typography variant="caption" sx={{ fontWeight: 700, color: PALETTE.ink, letterSpacing: 0.3 }}>
           TOTAL
         </Typography>
-        <Typography
-          variant="body2"
-          sx={{ fontFamily: NUMERIC_FONT, fontWeight: 700, color: accent }}
-        >
+        <Typography variant="body2" sx={{ fontFamily: NUMERIC_FONT, fontWeight: 700, color: accent }}>
           {fmt(total)}
         </Typography>
       </Stack>
@@ -261,6 +258,7 @@ export default function WaterBalanceCard({
 }) {
   const [values, setValues] = useState({ ...DEFAULT_VALUES, ...initialValues });
   const [expanded, setExpanded] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const totals = useMemo(() => computeTotals(values), [values]);
   const isSurplus = totals.deltaS >= 0;
@@ -271,6 +269,23 @@ export default function WaterBalanceCard({
     const next = { ...values, [key]: raw === "" ? "" : Number(raw) };
     setValues(next);
     if (onChange) onChange(next, computeTotals(next).deltaS);
+  };
+
+  const saveWaterBalance = async () => {
+    try {
+      setSaving(true);
+
+      const response = await axios.post("http://127.0.0.1:8000/api/water-balance/add/", {
+        ...values
+      });
+
+      alert(`Water Balance Saved\nΔS = ${response.data.delta_s}`);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save water balance.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -383,6 +398,13 @@ export default function WaterBalanceCard({
             />
           </Grid>
         </Grid>
+
+        {/* Save button */}
+        <Stack direction="row" justifyContent="flex-end" sx={{ mt: 3 }}>
+          <Button variant="contained" color="primary" onClick={saveWaterBalance} disabled={saving}>
+            {saving ? "Saving..." : "Save Water Balance"}
+          </Button>
+        </Stack>
 
         {/* Summary line */}
         <Box

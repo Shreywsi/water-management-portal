@@ -90,7 +90,8 @@ def preprocess_dataset(csv_path):
 
         "surface_inflow",
 
-        "surface_outflow"
+        "surface_outflow",
+        "deep_percolation"
 
     ]
 
@@ -147,45 +148,47 @@ def preprocess_dataset(csv_path):
     # Estimate missing hydrological variables
     # =====================================================
 
-    if "recharge_mm" not in df.columns:
+    required_hydrology = [
 
-        df["recharge_mm"] = (
+        "recharge_mm",
 
-            df["rainfall_mm"]
+        "evapotranspiration_mm",
 
-            * 0.18
+        "surface_inflow",
+
+        "surface_outflow"
+
+    ]
+
+    missing = [
+
+        c
+
+        for c in required_hydrology
+
+        if c not in df.columns
+
+    ]
+
+    if missing:
+
+        raise Exception(
+
+            f"Dataset is missing required hydrology columns: {missing}"
+
+        )
+
+    for col in required_hydrology:
+
+        df[col] = pd.to_numeric(
+
+            df[col],
+
+            errors="coerce"
 
         )
 
-    if "evapotranspiration_mm" not in df.columns:
-
-        df["evapotranspiration_mm"] = (
-
-            df["rainfall_mm"]
-
-            * 0.32
-
-        )
-
-    if "surface_inflow" not in df.columns:
-
-        df["surface_inflow"] = (
-
-            df["rainfall_mm"]
-
-            * 0.08
-
-        )
-
-    if "surface_outflow" not in df.columns:
-
-        df["surface_outflow"] = (
-
-            df["rainfall_mm"]
-
-            * 0.04
-
-        )
+        df[col] = df[col].fillna(0)
 
     # -------------------------
     # Pump abstraction
@@ -215,9 +218,16 @@ def preprocess_dataset(csv_path):
     # Deep Percolation
     # -------------------------
 
-    df["deep_percolation"] = (
-    df["rainfall_mm"] * 0.06
-)
+    if "deep_percolation" not in df.columns:
+
+        raise Exception(
+            "Dataset is missing required column: deep_percolation"
+        )
+
+    df["deep_percolation"] = pd.to_numeric(
+        df["deep_percolation"],
+        errors="coerce"
+    ).fillna(0)
 
     # =====================================================
     # Water Balance
