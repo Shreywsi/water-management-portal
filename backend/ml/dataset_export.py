@@ -61,6 +61,7 @@ def export_database_to_training_dataset():
             "surface_outflow": wb.Se + wb.O,
 
             "water_balance": wb.delta_s,
+            "deep_percolation": wb.Dp,
 
         })
 

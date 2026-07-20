@@ -997,8 +997,9 @@ def add_water_balance(request):
     )
     from ml.dataset_export import export_database_to_training_dataset
     from ml.train import train_model
-
+    print("✅ Water Balance saved to database")
     export_database_to_training_dataset()
+    print("🚀 Starting LSTM retraining...")
     Thread(
     target=train_model,
     daemon=True

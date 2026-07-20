@@ -24,6 +24,7 @@ from ml.dataset import get_active_dataset
 # Create save directory
 # ---------------------------------------------------
 def train_model():
+    print("========== TRAINING STARTED ==========")
     SAVE_DIR = "ml/saved_models"
     os.makedirs(SAVE_DIR, exist_ok=True)
 
