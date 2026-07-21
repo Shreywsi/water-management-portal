@@ -10,21 +10,24 @@ import {
   ListItem,
   ListItemText,
   Stack,
+  IconButton,
   Alert,
-  CircularProgress,
 } from "@mui/material";
+
+import DeleteIcon from "@mui/icons-material/Delete";
 
 export default function Locations() {
   const [name, setName] = useState("");
   const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("success");
 
   const loadLocations = async () => {
     try {
       const res = await axios.get(
         "http://127.0.0.1:8000/api/location-list/"
       );
+
       setLocations(res.data);
     } catch (err) {
       console.error(err);
@@ -38,52 +41,44 @@ export default function Locations() {
   const addLocation = async () => {
     if (!name.trim()) return;
 
-    setLoading(true);
-    setMessage("");
-
     try {
-      // Validate location using OpenStreetMap
-      const geo = await axios.get(
-        "https://nominatim.openstreetmap.org/search",
-        {
-          params: {
-            q: name,
-            format: "json",
-            limit: 1,
-          },
-          headers: {
-            Accept: "application/json",
-          },
-        }
-      );
-
-      if (geo.data.length === 0) {
-        setMessage("Invalid location. Please enter a real location.");
-        setLoading(false);
-        return;
-      }
-
-      const place = geo.data[0];
-
-      await axios.post(
+      const res = await axios.post(
         "http://127.0.0.1:8000/api/location/add/",
         {
-          name: place.display_name,
-          location_type: "Location",
-          district: "",
-          state: "",
+          name: name.trim(),
         }
       );
 
-      setName("");
-      loadLocations();
-      setMessage("Location added successfully.");
+      if (res.data.success) {
+        setMessage("Location added successfully.");
+        setMessageType("success");
+        setName("");
+        loadLocations();
+      }
     } catch (err) {
-      console.error(err);
-      setMessage("Something went wrong.");
+      setMessage(
+        err.response?.data?.message || "Unable to add location."
+      );
+      setMessageType("error");
     }
+  };
 
-    setLoading(false);
+  const deleteLocation = async (id) => {
+    if (!window.confirm("Delete this location?")) return;
+
+    try {
+      await axios.delete(
+        `http://127.0.0.1:8000/api/location/${id}/`
+      );
+
+      setMessage("Location deleted.");
+      setMessageType("success");
+
+      loadLocations();
+    } catch (err) {
+      setMessage("Unable to delete location.");
+      setMessageType("error");
+    }
   };
 
   return (
@@ -93,12 +88,19 @@ export default function Locations() {
       </Typography>
 
       {message && (
-        <Alert sx={{ mb: 2 }}>
+        <Alert
+          severity={messageType}
+          sx={{ mb: 2 }}
+        >
           {message}
         </Alert>
       )}
 
-      <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
+      <Stack
+        direction="row"
+        spacing={2}
+        sx={{ mb: 3 }}
+      >
         <TextField
           fullWidth
           label="Enter Location"
@@ -108,23 +110,29 @@ export default function Locations() {
 
         <Button
           variant="contained"
-          disabled={loading}
           onClick={addLocation}
         >
-          {loading ? (
-            <CircularProgress size={22} color="inherit" />
-          ) : (
-            "Add"
-          )}
+          Add
         </Button>
       </Stack>
 
       <List>
         {locations.map((location) => (
-          <ListItem key={location.id}>
+          <ListItem
+            key={location.id}
+            secondaryAction={
+              <IconButton
+                color="error"
+                onClick={() =>
+                  deleteLocation(location.id)
+                }
+              >
+                <DeleteIcon />
+              </IconButton>
+            }
+          >
             <ListItemText
               primary={location.name}
-              secondary={location.location_type}
             />
           </ListItem>
         ))}

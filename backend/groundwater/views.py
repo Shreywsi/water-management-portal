@@ -146,13 +146,8 @@ def village_clusters_geojson(request):
     return Response(geojson)
 @api_view(["POST"])
 def add_location(request):
-    data = request.data
 
-    name = data.get("name")
-    location_type = data.get("location_type")
-    district = data.get("district")
-    state = data.get("state")
-    parent_id = data.get("parent")
+    name = request.data.get("name", "").strip()
 
     if not name:
         return Response(
@@ -160,36 +155,28 @@ def add_location(request):
                 "success": False,
                 "message": "Location name is required."
             },
-            status=400,
+            status=400
         )
 
-    parent = None
-    if parent_id:
-        try:
-            parent = Location.objects.get(id=parent_id)
-        except Location.DoesNotExist:
-            return Response(
-                {
-                    "success": False,
-                    "message": "Parent location not found."
-                },
-                status=404,
-            )
+    # Prevent duplicate locations
+    if Location.objects.filter(name__iexact=name).exists():
+        return Response(
+            {
+                "success": False,
+                "message": "Location already exists."
+            },
+            status=400
+        )
 
     location = Location.objects.create(
-        name=name,
-        location_type=location_type or "Village",
-        district=district or "",
-        state=state or "",
-        parent=parent,
+        name=name
     )
 
     return Response(
         {
             "success": True,
             "id": location.id,
-            "name": location.name,
-            "location_type": location.location_type,
+            "name": location.name
         }
     )
 @api_view(["GET"])
@@ -209,6 +196,30 @@ def location_list(request):
     ]
 
     return Response(data)
+@api_view(["DELETE"])
+def delete_location(request, id):
+
+    try:
+        location = Location.objects.get(id=id)
+
+    except Location.DoesNotExist:
+
+        return Response(
+            {
+                "success": False,
+                "message": "Location not found."
+            },
+            status=404
+        )
+
+    location.delete()
+
+    return Response(
+        {
+            "success": True,
+            "message": "Location deleted."
+        }
+    )
 @api_view(["GET"])
 def waterlevel(request):
 

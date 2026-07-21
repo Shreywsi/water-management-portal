@@ -30,7 +30,8 @@ from .views import (
     forecast_api,
     water_balance_history,
     add_location,
-    location_list,
+location_list,
+delete_location,
     
 
 )
@@ -68,12 +69,16 @@ urlpatterns = [
     path(
     "location-list/",
     location_list,
-    name="location_list",
-),
+    name="location_list",),
 
 path(
     "location/add/",
     add_location,
     name="add_location",
+),
+path(
+    "location/<int:id>/",
+    delete_location,
+    name="delete_location",
 ),
 ]
