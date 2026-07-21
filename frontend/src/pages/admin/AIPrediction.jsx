@@ -15,21 +15,78 @@ import {
 } from "@mui/material";
 
 import { getForecast } from "../../services/forecastApi";
+import { getLocations } from "../../services/locationApi";
 
 import AIPredictionCard from "../../components/admin/AIPredictionCard";
 
 export default function AIPrediction() {
 
+  const [locations, setLocations] = useState([]);
+
+  const [location, setLocation] = useState("");
+
   const [period, setPeriod] = useState("monthly");
-  const [location, setLocation] = useState(6);
+
   const [forecast, setForecast] = useState(null);
 
   const [loading, setLoading] = useState(false);
 
   const [error, setError] = useState("");
 
+  // -------------------------
+  // Load Locations
+  // -------------------------
+
   useEffect(() => {
+
+    async function fetchLocations() {
+
+        try {
+
+            const data = await getLocations();
+
+            console.log("Locations API:", data);
+
+            const locationArray = Array.isArray(data)
+                ? data
+                : data.locations || [];
+
+            setLocations(locationArray);
+
+            if (locationArray.length > 0) {
+
+                setLocation(locationArray[0].id);
+
+            }
+
+        }
+
+        catch (err) {
+
+            console.error(err);
+
+            setError("Unable to load locations.");
+
+        }
+
+    }
+
+    fetchLocations();
+
+}, []);
+
+  // -------------------------
+  // Load Forecast
+  // -------------------------
+
+  useEffect(() => {
+
+    if (location) {
+
       loadForecast(period, location);
+
+    }
+
   }, [period, location]);
 
   async function loadForecast(selectedPeriod, selectedLocation) {
@@ -43,13 +100,15 @@ export default function AIPrediction() {
       const data = await getForecast(
         selectedPeriod,
         selectedLocation
-    );
+      );
 
       setForecast(data);
 
     }
 
     catch (err) {
+
+      console.error(err);
 
       setError(err.message);
 
@@ -62,7 +121,7 @@ export default function AIPrediction() {
     }
 
   }
-
+console.log(locations);
   return (
 
     <Container maxWidth="xl">
@@ -76,33 +135,51 @@ export default function AIPrediction() {
         AI Water Balance Forecasting
 
       </Typography>
+
       <FormControl
-    sx={{ minWidth: 250, mb: 3 }}
+        sx={{
+          minWidth: 250,
+          mb: 3
+        }}
+      >
+
+        <InputLabel>
+
+          Location
+
+        </InputLabel>
+
+        <Select
+    value={location}
+    label="Location"
+    onChange={(e) => setLocation(e.target.value)}
 >
 
-    <InputLabel>
-        Location
-    </InputLabel>
+    {locations.length === 0 ? (
 
-    <Select
-        value={location}
-        label="Location"
-        onChange={(e) =>
-            setLocation(e.target.value)
-        }
-    >
-
-        <MenuItem value={5}>
-            Mundra
+        <MenuItem disabled>
+            No Locations Found
         </MenuItem>
 
-        <MenuItem value={6}>
-            Abdasa
-        </MenuItem>
+    ) : (
 
-    </Select>
+        locations.map((loc) => (
 
-</FormControl>
+            <MenuItem
+                key={loc.id}
+                value={loc.id}
+            >
+                {loc.name}
+            </MenuItem>
+
+        ))
+
+    )}
+
+</Select>
+
+      </FormControl>
+
       <ToggleButtonGroup
 
         exclusive
@@ -170,15 +247,11 @@ export default function AIPrediction() {
       )}
 
       {!loading &&
-
         !error &&
-
         forecast && (
 
           <AIPredictionCard
-
             data={forecast}
-
           />
 
       )}

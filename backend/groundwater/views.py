@@ -48,6 +48,12 @@ from .models import (
 from .modflow_service import run_modflow
 from .models import UserProfile
 from ml.dataset import set_active_dataset
+import logging
+from rest_framework.decorators import permission_classes, authentication_classes
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.authentication import TokenAuthentication
+
+logger = logging.getLogger(__name__)
 
 @api_view(["GET"])
 def dashboard(request):
@@ -145,6 +151,8 @@ def village_clusters_geojson(request):
 
     return Response(geojson)
 @api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def add_location(request):
 
     name = request.data.get("name", "").strip()
@@ -273,12 +281,15 @@ def pumping(request):
 
 
 @api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def open_qgis(request):
 
-    subprocess.Popen([
-        "/Applications/QGIS.app/Contents/MacOS/QGIS",
-        "/Users/shreyasisoumya/water-management-portal/qgis/WaterManagement.qgz"
-    ])
+    QGIS_PROJECT = os.path.join(
+    settings.BASE_DIR,
+    "qgis",
+    "WaterManagement.qgz"
+)
 
     return Response({
     "success": True,
@@ -287,6 +298,7 @@ def open_qgis(request):
 
 
 @api_view(["POST"])
+@permission_classes([AllowAny])
 def login_user(request):
     username = str(request.data.get("username", "")).strip()
     password = str(request.data.get("password", ""))
@@ -323,6 +335,8 @@ def login_user(request):
     })
 
 @api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def run_gempy(request):
     result = build_geological_model()
     return Response(result)
@@ -494,7 +508,7 @@ def well_detail(request, well_id):
             })
 
     except Exception as e:
-        print(traceback.format_exc())
+        logger.exception("Unhandled error in view")
         return Response(
             {"error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -507,6 +521,8 @@ from django.views.decorators.csrf import csrf_exempt
 
 @csrf_exempt
 @api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def add_water_level(request):
     """
     Admin endpoint to add a new groundwater level reading for a well.
@@ -543,7 +559,7 @@ def add_water_level(request):
                 VALUES (%s, %s, %s);
             """, [well_id, time, water_level_m])
     except Exception as e:
-        print(traceback.format_exc())
+        logger.exception("Unhandled error in view")
         return Response({"error": str(e)}, status=500)
 
     return Response({
@@ -554,6 +570,8 @@ def add_water_level(request):
     }, status=201)
 @csrf_exempt
 @api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def add_pumping(request):
     """
     Expects JSON body: { "well_id": int, "time": "YYYY-MM-DD", "pumping_hours": float }
@@ -589,7 +607,7 @@ def add_pumping(request):
                 VALUES (%s, %s, %s);
             """, [well_id, time, pumping_hours])
     except Exception as e:
-        print(traceback.format_exc())
+        logger.exception("Unhandled error in view")
         return Response({"error": str(e)}, status=500)
 
     return Response({
@@ -599,6 +617,8 @@ def add_pumping(request):
 
 @csrf_exempt
 @api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def add_rainfall(request):
     """
     Expects JSON body: { "station_name": str, "time": "YYYY-MM-DD", "rainfall_mm": float }
@@ -630,7 +650,7 @@ def add_rainfall(request):
                 VALUES (%s, %s, %s);
             """, [time, station_name, rainfall_mm])
     except Exception as e:
-        print(traceback.format_exc())
+        logger.exception("Unhandled error in view")
         return Response({"error": str(e)}, status=500)
 
     return Response({
@@ -640,6 +660,8 @@ def add_rainfall(request):
 
 @csrf_exempt
 @api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def add_weather(request):
     """
     Expects JSON body: { "station_name": str, "time": "YYYY-MM-DD", "temperature_c": float, "humidity_pct": float }
@@ -673,7 +695,7 @@ def add_weather(request):
                 VALUES (%s, %s, %s, %s);
             """, [time, station_name, temperature_c, humidity_pct])
     except Exception as e:
-        print(traceback.format_exc())
+        logger.exception("Unhandled error in view")
         return Response({"error": str(e)}, status=500)
 
     return Response({
@@ -709,6 +731,8 @@ def water_quality(request):
 
 @csrf_exempt
 @api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def add_water_quality(request):
     """
     Expects JSON body: { "well_id": int, "time": "YYYY-MM-DD", "tds_ppm": float, "salinity_ppt": float }
@@ -747,7 +771,7 @@ def add_water_quality(request):
                 VALUES (%s, %s, %s, %s);
             """, [well_id, time, tds_ppm, salinity_ppt])
     except Exception as e:
-        print(traceback.format_exc())
+        logger.exception("Unhandled error in view")
         return Response({"error": str(e)}, status=500)
 
     return Response({
@@ -783,6 +807,8 @@ def salinity(request):
 
 @csrf_exempt
 @api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def add_watertable(request):
     """Expects JSON body: { "date": "YYYY-MM-DD", "depth": float }"""
     date = request.data.get("date")
@@ -803,6 +829,8 @@ def add_watertable(request):
 
 @csrf_exempt
 @api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def add_tds(request):
     """Expects JSON body: { "date": "YYYY-MM-DD", "value": float }"""
     date = request.data.get("date")
@@ -823,6 +851,8 @@ def add_tds(request):
 
 @csrf_exempt
 @api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def add_salinity(request):
     """Expects JSON body: { "date": "YYYY-MM-DD", "value": float }"""
     date = request.data.get("date")
@@ -842,6 +872,8 @@ def add_salinity(request):
 
 @csrf_exempt
 @api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def upload_gis_file(request):
 
     uploaded_file = request.FILES.get("file")
@@ -852,9 +884,6 @@ def upload_gis_file(request):
             status=400
         )
 
-    # -------------------------
-    # Save uploaded ZIP
-    # -------------------------
     upload_dir = os.path.join(settings.BASE_DIR, "uploads", "gis")
     os.makedirs(upload_dir, exist_ok=True)
 
@@ -867,9 +896,6 @@ def upload_gis_file(request):
     shp_file = None
     extracted_files = []
 
-    # -------------------------
-    # Extract ZIP
-    # -------------------------
     if uploaded_file.name.lower().endswith(".zip"):
 
         extract_dir = os.path.join(
@@ -881,10 +907,12 @@ def upload_gis_file(request):
 
         os.makedirs(extract_dir, exist_ok=True)
 
-        with zipfile.ZipFile(file_path, "r") as zip_ref:
-            zip_ref.extractall(extract_dir)
+        try:
+            with zipfile.ZipFile(file_path, "r") as zip_ref:
+                zip_ref.extractall(extract_dir)
+        except zipfile.BadZipFile:
+            return Response({"error": "Uploaded file is not a valid ZIP archive."}, status=400)
 
-        # Search for .shp
         for root, dirs, files in os.walk(extract_dir):
 
             for file in files:
@@ -910,9 +938,6 @@ def upload_gis_file(request):
                 status=400
             )
 
-        # -------------------------
-        # Generate PostGIS table name
-        # -------------------------
         table_name = (
             Path(uploaded_file.name)
             .stem
@@ -922,30 +947,55 @@ def upload_gis_file(request):
         )
 
         # -------------------------
-        # Import into PostGIS
+        # Build a real PostGIS connection string from Django's DB settings
         # -------------------------
+        db = settings.DATABASES.get("default", {})
+
+        required = ("NAME", "USER", "PASSWORD", "HOST")
+        if not all(db.get(k) for k in required):
+            return Response(
+                {"error": "Database connection settings are incomplete on the server."},
+                status=500,
+            )
+
+        pg_conn = (
+            f'PG:host={db["HOST"]} '
+            f'port={db.get("PORT") or 5432} '
+            f'dbname={db["NAME"]} '
+            f'user={db["USER"]} '
+            f'password={db["PASSWORD"]}'
+        )
+
         cmd = [
             "ogr2ogr",
             "-f", "PostgreSQL",
-            "PG:host=localhost port=5432 dbname=water_db user=shreyasisoumya",
+            pg_conn,
             shp_file,
             "-nln", table_name,
             "-overwrite",
         ]
 
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-        )
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+        except FileNotFoundError:
+            return Response(
+                {"error": "ogr2ogr is not installed on this server. Install GDAL (gdal-bin)."},
+                status=500,
+            )
+        except subprocess.TimeoutExpired:
+            return Response(
+                {"error": "GIS import timed out."},
+                status=504,
+            )
 
-        print("========== OGR2OGR ==========")
-        print("Return code:", result.returncode)
-        print("STDOUT:")
-        print(result.stdout)
-        print("STDERR:")
-        print(result.stderr)
-        print("=============================")
+        logger.info("ogr2ogr return code: %s", result.returncode)
+        if result.returncode != 0:
+            logger.error("ogr2ogr stderr: %s", result.stderr)
 
         if result.returncode != 0:
             return Response(
@@ -960,9 +1010,6 @@ def upload_gis_file(request):
     else:
         table_name = None
 
-    # -------------------------
-    # Success
-    # -------------------------
     return Response({
         "success": True,
         "filename": uploaded_file.name,
@@ -974,7 +1021,15 @@ def upload_gis_file(request):
 @api_view(["GET"])
 def water_balance_prediction(request):
 
-    prediction = predict_water_balance()
+    location_id = request.GET.get("location")
+
+    if not location_id:
+        return JsonResponse({
+            "success": False,
+            "message": "Location is required."
+        }, status=400)
+
+    prediction = predict_water_balance(int(location_id))
 
     return JsonResponse({
         "status": "success",
@@ -984,6 +1039,7 @@ def water_balance_prediction(request):
     })
 
 @api_view(["POST"])
+@permission_classes([AllowAny])
 def register(request):
 
     full_name = request.data.get("full_name")
@@ -992,28 +1048,24 @@ def register(request):
     password = request.data.get("password")
     role = request.data.get("role")
 
-    # Validate fields
     if not all([full_name, username, email, password, role]):
         return Response({
             "success": False,
             "error": "All fields are required."
-        })
+        }, status=400)
 
-    # Check username
     if User.objects.filter(username=username).exists():
         return Response({
             "success": False,
             "error": "Username already exists."
-        })
+        }, status=400)
 
-    # Check email
     if User.objects.filter(email=email).exists():
         return Response({
             "success": False,
             "error": "Email already exists."
-        })
+        }, status=400)
 
-    # Create Django user
     user = User.objects.create_user(
         username=username,
         email=email,
@@ -1021,7 +1073,6 @@ def register(request):
         first_name=full_name
     )
 
-    # Create profile
     UserProfile.objects.create(
         user=user,
         full_name=full_name,
@@ -1031,13 +1082,15 @@ def register(request):
     return Response({
         "success": True,
         "message": "Registration successful."
-    })
+    }, status=201)
 
 @csrf_exempt
 @api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def add_water_balance(request):
 
-    from threading import Thread
+     
 
     data = request.data
 
@@ -1105,14 +1158,11 @@ def add_water_balance(request):
     )
     from ml.dataset_export import export_database_to_training_dataset
     from ml.train import train_model
-    print("✅ Water Balance saved to database")
+    logger.info("Water balance record saved to database (id=%s)", record.id)
     export_database_to_training_dataset()
-    print("🚀 Starting LSTM retraining...")
-    Thread(
-    target=train_model,
-    args=(location.id,),
-    daemon=True
-).start()
+    logger.info("Queuing LSTM retraining for location %s", location.id)
+    from ml.tasks import retrain_model_task
+    retrain_model_task.delay(location.id)
     
 
     return Response(
@@ -1167,14 +1217,11 @@ def water_balance_history(request):
 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-def background_retrain():
-    try:
-        retrain_model()
-        print("✅ LSTM model retrained successfully.")
-    except Exception as e:
-        print(f"❌ Background training failed: {e}")
+
 
 @api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def upload_dataset(request):
     file = request.FILES.get("file")
 
@@ -1272,10 +1319,6 @@ def upload_dataset(request):
         columns=len(df.columns),
     )
 
-    threading.Thread(
-        target=background_retrain,
-        daemon=True
-    ).start()
 
     return Response({
 
@@ -1300,9 +1343,23 @@ def upload_dataset(request):
 })
 
 @api_view(["POST"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 def retrain_lstm(request):
 
-    result = retrain_model()
+    location_id = request.data.get("location")
+
+    if not location_id:
+
+        return Response(
+            {
+                "success": False,
+                "message": "Location required."
+            },
+            status=400
+        )
+
+    result = retrain_model(location_id)
 
     if result["success"]:
         return Response(result)
@@ -1313,6 +1370,14 @@ def retrain_lstm(request):
 def ai_dashboard(request):
 
     from ml.predict import predict_water_balance
+
+    location_id = request.GET.get("location")
+
+    if not location_id:
+        return Response({
+            "success": False,
+            "message": "Location is required."
+        }, status=400)
 
     master_dataset = os.path.join(
         settings.BASE_DIR,
@@ -1328,19 +1393,15 @@ def ai_dashboard(request):
         df = pd.read_csv(master_dataset)
         rows = len(df)
 
-    model_path = os.path.join(
+    model_dir = os.path.join(
         settings.BASE_DIR,
         "ml",
         "saved_models",
-        "water_balance_model.keras"
+        f"location_{location_id}",
     )
 
-    scaler_path = os.path.join(
-        settings.BASE_DIR,
-        "ml",
-        "saved_models",
-        "water_balance_scaler.pkl"
-    )
+    model_path = os.path.join(model_dir, "water_balance_model.keras")
+    scaler_path = os.path.join(model_dir, "water_balance_scaler.pkl")
 
     model_ready = (
         os.path.exists(model_path)
@@ -1352,18 +1413,12 @@ def ai_dashboard(request):
 
     if model_ready:
         try:
-            prediction = predict_water_balance()
+            prediction = predict_water_balance(int(location_id))
         except Exception:
             prediction = None
 
     metrics = {}
-
-    metrics_path = os.path.join(
-        settings.BASE_DIR,
-        "ml",
-        "saved_models",
-        "model_metrics.json"
-    )
+    metrics_path = os.path.join(model_dir, "model_metrics.json")
 
     if os.path.exists(metrics_path):
         with open(metrics_path) as f:
@@ -1379,10 +1434,7 @@ def ai_dashboard(request):
     confidence = None
 
     if r2 is not None:
-        confidence = round(
-            max(0, min(r2 * 100, 100)),
-            1
-        )
+        confidence = round(max(0, min(r2 * 100, 100)), 1)
 
     forecast_min = None
     forecast_max = None
@@ -1463,9 +1515,10 @@ def forecast_api(request, period):
 
     steps = periods[period]
 
-    prediction = predict_water_balance(location.id)
-
-    # Load model metrics
+    prediction = predict_water_balance(
+        location.id,
+        steps
+    )
     metrics_path = os.path.join(
         settings.BASE_DIR,
         "ml",
@@ -1480,16 +1533,74 @@ def forecast_api(request, period):
         with open(metrics_path) as f:
             metrics = json.load(f)
 
+    record_count = WaterBalance.objects.filter(
+        location=location
+    ).count()
+
+    rmse = metrics.get("rmse")
+    r2 = metrics.get("r2")
+
+    # -------------------------
+    # Confidence
+    # -------------------------
+
+    if r2 is None:
+        confidence = 0
+    else:
+        confidence = round(max(0, min(r2 * 100, 100)), 1)
+
+    # -------------------------
+    # Confidence Level
+    # -------------------------
+
+    if confidence >= 90:
+        confidence_level = "Very High"
+
+    elif confidence >= 75:
+        confidence_level = "High"
+
+    elif confidence >= 50:
+        confidence_level = "Medium"
+
+    else:
+        confidence_level = "Low"
+
+    # -------------------------
+    # Prediction Range
+    # -------------------------
+
+    if rmse is None:
+
+        lower = prediction
+
+        upper = prediction
+
+    else:
+
+        lower = round(prediction - rmse, 2)
+
+        upper = round(prediction + rmse, 2)
+
     result = {
+
         "prediction": prediction,
-        "confidence": 92,
-        "confidence_level": "High",
+
+        "confidence": confidence,
+
+        "confidence_level": confidence_level,
+
         "prediction_range": {
-            "lower": round(prediction - 5, 2),
-            "upper": round(prediction + 5, 2),
+
+            "lower": lower,
+
+            "upper": upper,
+
         },
-        "years_of_history": 1,
+
+        "years_of_history": record_count,
+
         "model_metrics": metrics,
+
     }
 
     return Response({

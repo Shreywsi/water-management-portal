@@ -13,15 +13,22 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 
-def predict_water_balance(location_id):
+def predict_water_balance(location_id, steps=1):
     SAVE_DIR = BASE_DIR / "saved_models" / f"location_{location_id}"
 
     MODEL_PATH = SAVE_DIR / "water_balance_model.keras"
     SCALER_PATH = SAVE_DIR / "water_balance_scaler.pkl"
     CONFIG_PATH = SAVE_DIR / "model_config.json"
 
+    if not SAVE_DIR.exists():
+        raise Exception(
+            f"No trained model exists for Location {location_id}."
+        )
+
     if not MODEL_PATH.exists():
-        raise Exception("Model has not been trained yet.")
+        raise Exception(
+            f"Model missing for Location {location_id}."
+        )
 
     if not SCALER_PATH.exists():
         raise Exception("Scaler has not been created yet.")
@@ -72,18 +79,29 @@ def predict_water_balance(location_id):
     data = df[features].values
     scaled = scaler.transform(data)
 
-    sequence = scaled[-sequence_length:]
+    sequence = scaled[-sequence_length:].copy()
 
-    X = np.array([sequence])
+    prediction = None
 
-    prediction_scaled = model.predict(
-        X,
-        verbose=0
-    )[0][0]
+    for _ in range(steps):
+
+        X = np.array([sequence])
+
+        prediction_scaled = model.predict(
+            X,
+            verbose=0
+        )[0][0]
+
+        next_row = sequence[-1].copy()
+
+        next_row[target_index] = prediction_scaled
+
+        sequence = np.vstack([
+            sequence[1:],
+            next_row
+        ])
 
     dummy = sequence[-1].copy()
-
-    dummy[target_index] = prediction_scaled
 
     prediction = scaler.inverse_transform(
         [dummy]

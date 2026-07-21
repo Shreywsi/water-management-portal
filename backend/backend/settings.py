@@ -69,7 +69,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'groundwater',
+    'ml',
     'corsheaders',
+    'django_celery_results',
 ]
 
 MIDDLEWARE = [
@@ -157,3 +159,35 @@ STATIC_URL = 'static/'
 CORS_ALLOWED_ORIGINS = [
     origin.strip() for origin in get_env("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if origin.strip()
 ]
+
+
+# Celery
+CELERY_BROKER_URL = get_env("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = "django-db"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+
+
+# Logging
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[{asctime}] {levelname} {name}: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": get_env("DJANGO_LOG_LEVEL", "INFO"),
+    },
+}

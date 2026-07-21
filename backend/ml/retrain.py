@@ -1,32 +1,22 @@
-import subprocess
-import os
-import sys
+from ml.train import train_model
+import traceback
 
 
-def retrain_model():
+def retrain_model(location_id):
 
-    BASE_DIR = os.path.dirname(
-        os.path.dirname(
-            os.path.abspath(__file__)
-        )
-    )
+    try:
+        train_model(location_id)
 
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "ml.train"
-        ],
-        cwd=BASE_DIR,
-        capture_output=True,
-        text=True
-    )
+        return {
+            "success": True,
+            "message": f"Location {location_id} retrained successfully."
+        }
 
-    if result.returncode != 0:
-        raise Exception(result.stderr)
+    except Exception as e:
 
-    return {
-        "success": True,
-        "message": "Model retrained successfully",
-        "output": result.stdout
-    }
+        traceback.print_exc()
+
+        return {
+            "success": False,
+            "message": str(e)
+        }

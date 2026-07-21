@@ -4,6 +4,7 @@ import joblib
 import numpy as np
 import pandas as pd
 
+import sys 
 from sklearn.metrics import (
     mean_absolute_error,
     mean_squared_error,
@@ -12,21 +13,49 @@ from sklearn.metrics import (
 
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
+from groundwater.models import WaterBalance
 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
 from tensorflow.keras.callbacks import EarlyStopping
 
-from ml.preprocess import preprocess_dataset
-from ml.dataset import get_active_dataset
-
 # ---------------------------------------------------
 # Create save directory
 # ---------------------------------------------------
+def load_location_dataset(location_id):
+
+    rows = []
+
+    records = (
+        WaterBalance.objects
+        .filter(location_id=location_id)
+        .order_by("created_at")
+    )
+
+    for r in records:
+        rows.append({
+            "rainfall_mm": r.Rr,
+            "groundwater_depth": 0,
+            "water_balance": r.delta_s,
+            "month": r.created_at.month,
+        })
+
+    df = pd.DataFrame(rows)
+
+    if len(df) == 0:
+        raise Exception("No data found for this location.")
+
+    df["month_sin"] = np.sin(2 * np.pi * df["month"] / 12)
+    df["month_cos"] = np.cos(2 * np.pi * df["month"] / 12)
+
+    return df
+
 def train_model(location_id):
     print("========== TRAINING STARTED ==========")
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
     SAVE_DIR = os.path.join(
-        "ml",
+        BASE_DIR,
         "saved_models",
         f"location_{location_id}"
     )
@@ -37,46 +66,6 @@ def train_model(location_id):
     # ---------------------------------------------------
 
     from groundwater.models import WaterBalance
-
-
-    def load_location_dataset(location_id):
-
-        rows = []
-
-        records = (
-            WaterBalance.objects
-            .filter(location_id=location_id)
-            .order_by("created_at")
-        )
-
-        for r in records:
-
-            rows.append({
-
-                "rainfall_mm": r.Rr,
-
-                "groundwater_depth": 0,
-
-                "water_balance": r.delta_s,
-
-                "month": r.created_at.month,
-
-            })
-
-        df = pd.DataFrame(rows)
-
-        if len(df) == 0:
-            raise Exception("No data found for this location.")
-
-        df["month_sin"] = np.sin(
-            2 * np.pi * df["month"] / 12
-        )
-
-        df["month_cos"] = np.cos(
-            2 * np.pi * df["month"] / 12
-        )
-
-        return df
     df = load_location_dataset(location_id)
 
     if len(df) < 20:
@@ -265,39 +254,32 @@ def train_model(location_id):
     pred_water_balance = pred_original[:, target_index]
     true_water_balance = true_original[:, target_index]
     metrics = {
-
-        "water_balance": {
-
-            "rmse": float(
-                np.sqrt(
-                    mean_squared_error(
-                        true_water_balance,
-                        pred_water_balance
-                    )
-                )
-            ),
-
-            "mae": float(
-                mean_absolute_error(
-                    true_water_balance,
-                    pred_water_balance
-                )
-            ),
-
-            "r2": float(
-                r2_score(
-                    true_water_balance,
-                    pred_water_balance
-                )
+    "rmse": float(
+        np.sqrt(
+            mean_squared_error(
+                true_water_balance,
+                pred_water_balance
             )
+        )
+    ),
 
-        },
+    "mae": float(
+        mean_absolute_error(
+            true_water_balance,
+            pred_water_balance
+        )
+    ),
 
-        "train_samples": len(X_train),
+    "r2": float(
+        r2_score(
+            true_water_balance,
+            pred_water_balance
+        )
+    ),
 
-        "test_samples": len(X_test)
-
-    }
+    "train_samples": len(X_train),
+    "test_samples": len(X_test),
+}
 
     # ---------------------------------------------------
     # Save model
@@ -338,6 +320,14 @@ def train_model(location_id):
 
     print("\nTraining Complete")
 
-    print("Model saved successfully!")
-
+    print(f"✅ Model for Location {location_id} saved successfully!")
     print(json.dumps(metrics, indent=4))
+if __name__ == "__main__":
+
+    if len(sys.argv) != 2:
+        print("Usage:")
+        print("python -m ml.train <location_id>")
+        sys.exit(1)
+
+    train_model(int(sys.argv[1]))
+    

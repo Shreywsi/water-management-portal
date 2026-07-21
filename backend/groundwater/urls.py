@@ -66,19 +66,12 @@ urlpatterns = [
     path("ml/dashboard/",ai_dashboard,name="ai-dashboard",),
     path("ml/forecast/<str:period>/",forecast_api,),
     path("water-balance/history/",water_balance_history),
-    path(
-    "location-list/",
-    location_list,
-    name="location_list",),
+    path("locations/", location_list),
+    path("location-list/", location_list),
 
 path(
     "location/add/",
     add_location,
     name="add_location",
-),
-path(
-    "location/<int:id>/",
-    delete_location,
-    name="delete_location",
 ),
 ]
