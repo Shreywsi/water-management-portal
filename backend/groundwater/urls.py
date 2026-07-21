@@ -68,10 +68,14 @@ urlpatterns = [
     path("water-balance/history/",water_balance_history),
     path("locations/", location_list),
     path("location-list/", location_list),
-
 path(
     "location/add/",
     add_location,
     name="add_location",
+),
+path(
+    "location/<int:id>/",
+    delete_location,
+    name="delete_location"
 ),
 ]

@@ -151,8 +151,7 @@ def village_clusters_geojson(request):
 
     return Response(geojson)
 @api_view(["POST"])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def add_location(request):
 
     name = request.data.get("name", "").strip()
