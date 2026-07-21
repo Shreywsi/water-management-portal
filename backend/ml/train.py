@@ -3,6 +3,7 @@ import json
 import joblib
 import numpy as np
 import pandas as pd
+import django
 
 import sys 
 from sklearn.metrics import (
@@ -11,6 +12,19 @@ from sklearn.metrics import (
     r2_score
 )
 
+
+os.environ.setdefault(
+    "DJANGO_SETTINGS_MODULE",
+    "backend.settings"
+)
+
+django.setup()
+
+from sklearn.metrics import (
+    mean_absolute_error,
+    mean_squared_error,
+    r2_score
+)
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from groundwater.models import WaterBalance
@@ -67,8 +81,22 @@ def train_model(location_id):
 
     from groundwater.models import WaterBalance
     df = load_location_dataset(location_id)
+    # ---------------------------------------------------
+    # Save dataset used for this location
+    # ---------------------------------------------------
 
-    if len(df) < 20:
+    dataset_path = os.path.join(
+        SAVE_DIR,
+        "training_data.csv"
+    )
+
+    df.to_csv(
+        dataset_path,
+        index=False
+    )
+
+    print(f"Training dataset saved to: {dataset_path}")
+    if len(df) < 8:
         raise Exception(
             f"Location {location_id} has only {len(df)} records. Need at least 20."
         )

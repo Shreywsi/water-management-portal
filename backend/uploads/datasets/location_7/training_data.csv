@@ -1,0 +1,3 @@
+time,rainfall_mm,groundwater_depth,pumping_hours,recharge_mm,evapotranspiration_mm,surface_inflow,surface_outflow,deep_percolation,water_balance
+2026-07-21 10:28:31.533184+00:00,120.0,0,0,30.0,60.0,28.0,22.0,55.0,41.0
+2026-07-21 16:42:14.987407+00:00,120.0,0,0,-1.0,16.0,74.0,130.0,55.0,-8.0

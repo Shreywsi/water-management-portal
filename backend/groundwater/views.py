@@ -1085,8 +1085,7 @@ def register(request):
 
 @csrf_exempt
 @api_view(["POST"])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def add_water_balance(request):
 
      
@@ -1155,15 +1154,44 @@ def add_water_balance(request):
 
         delta_s=delta_s,
     )
-    from ml.dataset_export import export_database_to_training_dataset
-    from ml.train import train_model
-    logger.info("Water balance record saved to database (id=%s)", record.id)
-    export_database_to_training_dataset()
-    logger.info("Queuing LSTM retraining for location %s", location.id)
-    from ml.tasks import retrain_model_task
-    retrain_model_task.delay(location.id)
-    
 
+    logger.info(
+        "Water balance record saved to database (id=%s)",
+        record.id
+    )
+
+    # Export datasets
+    # Export only this location's dataset
+    from ml.dataset_export import export_location_dataset
+
+    rows = export_location_dataset(location.id)
+
+    logger.info(
+        "Exported %s rows for location %s",
+        rows,
+        location.id,
+    )
+    try:
+        from ml.train import train_model
+
+        if rows >= 20:
+            logger.info(
+                "Training model for location %s",
+                location.id
+            )
+
+            train_model(location.id)
+
+        else:
+            logger.info(
+                "Skipping training. Only %s rows available.",
+                rows
+            )
+
+    except Exception as e:
+        logger.exception(e)
+    # from ml.tasks import retrain_model_task
+    # retrain_model_task.delay(location.id)
     return Response(
         {
             "success": True,
@@ -1514,17 +1542,29 @@ def forecast_api(request, period):
 
     steps = periods[period]
 
-    prediction = predict_water_balance(
-        location.id,
-        steps
-    )
+    try:
+        forecast = predict_water_balance(
+            location.id,
+            steps
+        )
+
+        prediction = forecast[-1]
+    except Exception as e:
+        logger.exception("Prediction failed")
+
+        return Response(
+            {
+                "success": False,
+                "message": str(e)
+            },
+            status=500
+        )
     metrics_path = os.path.join(
-        settings.BASE_DIR,
-        "ml",
-        "saved_models",
-        f"location_{location.id}",
-        "model_metrics.json",
-    )
+    settings.BASE_DIR,
+    "saved_models",
+    f"location_{location.id}",
+    "model_metrics.json",
+)
 
     metrics = {}
 
@@ -1582,8 +1622,9 @@ def forecast_api(request, period):
 
     result = {
 
-        "prediction": prediction,
+    "prediction": prediction,
 
+    "forecast": forecast,
         "confidence": confidence,
 
         "confidence_level": confidence_level,

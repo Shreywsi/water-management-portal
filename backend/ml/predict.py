@@ -81,7 +81,7 @@ def predict_water_balance(location_id, steps=1):
 
     sequence = scaled[-sequence_length:].copy()
 
-    prediction = None
+    predictions = []
 
     for _ in range(steps):
 
@@ -92,22 +92,29 @@ def predict_water_balance(location_id, steps=1):
             verbose=0
         )[0][0]
 
+
         next_row = sequence[-1].copy()
 
         next_row[target_index] = prediction_scaled
+
+
+        prediction_value = scaler.inverse_transform(
+            [next_row]
+        )[0][target_index]
+
+
+        predictions.append(
+            round(float(prediction_value),2)
+        )
+
 
         sequence = np.vstack([
             sequence[1:],
             next_row
         ])
 
-    dummy = sequence[-1].copy()
 
-    prediction = scaler.inverse_transform(
-        [dummy]
-    )[0][target_index]
-
-    return round(float(prediction), 2)
+    return predictions
 
 
 if __name__ == "__main__":
