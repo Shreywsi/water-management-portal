@@ -91,34 +91,48 @@ export default function AIPrediction() {
 
   async function loadForecast(selectedPeriod, selectedLocation) {
 
-    try {
+  try {
 
-      setLoading(true);
+    setLoading(true);
+    setError("");
 
-      setError("");
+    const data = await getForecast(
+      selectedPeriod,
+      selectedLocation
+    );
 
-      const data = await getForecast(
-        selectedPeriod,
-        selectedLocation
+    if (!data.success) {
+      setForecast(null);
+      setError(
+        data.message ||
+        "Not enough historical data is available to train the AI model."
       );
-
-      setForecast(data);
-
+      return;
     }
 
-    catch (err) {
+    setForecast(data);
 
-      console.error(err);
+  }
 
-      setError(err.message);
+  catch (err) {
 
-    }
+    console.error(err);
 
-    finally {
+    setForecast(null);
 
-      setLoading(false);
+    setError(
+      err.response?.data?.message ||
+      err.message ||
+      "Unable to fetch prediction."
+    );
 
-    }
+  }
+
+  finally {
+
+    setLoading(false);
+
+  }
 
   }
 console.log(locations);

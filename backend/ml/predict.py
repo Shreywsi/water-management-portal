@@ -15,11 +15,17 @@ BASE_DIR = Path(__file__).resolve().parent
 
 def predict_water_balance(location_id, steps=1):
     SAVE_DIR = BASE_DIR / "saved_models" / f"location_{location_id}"
-
+    
     MODEL_PATH = SAVE_DIR / "water_balance_model.keras"
     SCALER_PATH = SAVE_DIR / "water_balance_scaler.pkl"
     CONFIG_PATH = SAVE_DIR / "model_config.json"
-
+    
+    print("=" * 60)
+    print("SAVE_DIR =", SAVE_DIR)
+    print("Exists   =", SAVE_DIR.exists())
+    print("MODEL    =", MODEL_PATH)
+    print("Exists   =", MODEL_PATH.exists())
+    print("=" * 60)
     if not SAVE_DIR.exists():
         raise Exception(
             f"No trained model exists for Location {location_id}."

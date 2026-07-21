@@ -1174,7 +1174,7 @@ def add_water_balance(request):
     try:
         from ml.train import train_model
 
-        if rows >= 20:
+        if rows >= 8:
             logger.info(
                 "Training model for location %s",
                 location.id

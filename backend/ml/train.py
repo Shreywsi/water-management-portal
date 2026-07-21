@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import json
 import joblib
 import numpy as np
@@ -66,14 +67,22 @@ def load_location_dataset(location_id):
 
 def train_model(location_id):
     print("========== TRAINING STARTED ==========")
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    BASE_DIR = Path(__file__).resolve().parent
 
-    SAVE_DIR = os.path.join(
-        BASE_DIR,
-        "saved_models",
-        f"location_{location_id}"
+    SAVE_DIR = (
+        BASE_DIR
+        / "saved_models"
+        / f"location_{location_id}"
     )
-    os.makedirs(SAVE_DIR, exist_ok=True)
+    print("=" * 60)
+    print("TRAIN SAVE_DIR:", SAVE_DIR)
+    print("=" * 60)
+
+    SAVE_DIR.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+    print("Directory exists:", SAVE_DIR.exists())
 
     # ---------------------------------------------------
     # Load & preprocess dataset
@@ -85,10 +94,7 @@ def train_model(location_id):
     # Save dataset used for this location
     # ---------------------------------------------------
 
-    dataset_path = os.path.join(
-        SAVE_DIR,
-        "training_data.csv"
-    )
+    dataset_path = SAVE_DIR / "training_data.csv"
 
     df.to_csv(
         dataset_path,
@@ -134,9 +140,9 @@ def train_model(location_id):
     }
 
     with open(
-        os.path.join(SAVE_DIR, "model_config.json"),
-        "w"
-    ) as f:
+    SAVE_DIR / "model_config.json",
+    "w"
+) as f:
 
         json.dump(
             training_config,
