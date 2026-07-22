@@ -250,3 +250,49 @@ class Dataset(models.Model):
 
     def __str__(self):
         return self.name
+class Wells(models.Model):
+    well_name = models.CharField(max_length=100)
+    village = models.CharField(max_length=100, blank=True, null=True)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    depth_m = models.FloatField(blank=True, null=True)
+    status = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        default='active',
+        choices=[('active', 'Active'), ('inactive', 'Inactive')],
+    )
+    geom = models.TextField(blank=True, null=True)  # PostGIS geometry — see note below
+
+    class Meta:
+        managed = True
+        db_table = 'wells'
+
+
+class AppUser(models.Model):
+    full_name = models.CharField(max_length=100)
+    email = models.CharField(unique=True, max_length=120)
+    password_hash = models.TextField()
+    role = models.CharField(
+        max_length=20,
+        choices=[('admin', 'Admin'), ('crp', 'CRP'), ('researcher', 'Researcher')],
+    )
+    created_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+
+    class Meta:
+        managed = True
+        db_table = 'users'
+
+
+class GisLayers(models.Model):
+    layer_name = models.TextField()
+    table_name = models.TextField(unique=True)
+    geometry_type = models.TextField(blank=True, null=True)
+    uploaded_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+    visible = models.BooleanField(blank=True, null=True, default=True)
+
+    class Meta:
+        managed = True
+        db_table = 'gis_layers'
+
