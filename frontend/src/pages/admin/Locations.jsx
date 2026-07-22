@@ -23,16 +23,22 @@ export default function Locations() {
   const [messageType, setMessageType] = useState("success");
 
   const loadLocations = async () => {
-    try {
-      const res = await axios.get(
-  `${API_BASE}/location-list/`
-);
+  try {
+    console.log("API_BASE used:", API_BASE);
 
-      setLocations(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+    const url = `${API_BASE}/location-list/`;
+
+    console.log("FINAL REQUEST URL:", url);
+
+    const res = await axios.get(url);
+
+    console.log("Locations API response:", res.data);
+
+    setLocations(res.data);
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   useEffect(() => {
     loadLocations();
