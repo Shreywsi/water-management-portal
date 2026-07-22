@@ -59,13 +59,30 @@ CSRF_TRUSTED_ORIGINS = [
     origin.strip() for origin in get_env("CSRF_TRUSTED_ORIGINS", "").split(",") if origin.strip()
 ]
 
+
+SECURE_SSL_REDIRECT = (
+    os.getenv("DJANGO_SECURE_SSL_REDIRECT", "False").lower()
+    == "true"
+)
+
+SESSION_COOKIE_SECURE = (
+    os.getenv("SESSION_COOKIE_SECURE", "False").lower()
+    == "true"
+)
+
+CSRF_COOKIE_SECURE = (
+    os.getenv("CSRF_COOKIE_SECURE", "False").lower()
+    == "true"
+)
+
+
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 7  # 1 week to start; raise once stable
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 7
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_PROXY_SSL_HEADER = (
+        "HTTP_X_FORWARDED_PROTO",
+        "https",
+    )
 
 # Application definition
 
