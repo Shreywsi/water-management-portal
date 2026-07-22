@@ -11,11 +11,10 @@ import TDSEntry from "../pages/crp/TDSEntry";
 import SalinityEntry from "../pages/crp/SalinityEntry";
 
 import CRPDashboard from "../pages/crp/CRPDashboard";
-import ResearcherDashboard from "../pages/researcher/ResearcherDashboard";
 import RegisterPage from "../pages/SignupPage";
 
 import AdminLayout from "../layouts/AdminLayout";
-import MyWorkspace from "../pages/admin/MyWorkspace";
+
 
 import AIPrediction from "../pages/admin/AIPrediction";
 
@@ -39,14 +38,7 @@ function AppRoutes() {
           </AdminLayout>
         }
       />
-      <Route
-  path="/admin/workspace"
-  element={
-    <AdminLayout>
-      <MyWorkspace />
-    </AdminLayout>
-  }
-/>
+      
       <Route
         path="/admin/gis"
         element={
@@ -86,7 +78,7 @@ function AppRoutes() {
             path="/admin/water-history"
             element={<WaterBalanceHistory />}
         />
-        <Route path="/researcher" element={<ResearcherDashboard />} />
+
         <Route path="/signup" element={<SignupPage />} />
       </Routes>
     </BrowserRouter>
