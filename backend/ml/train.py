@@ -5,7 +5,7 @@ import joblib
 import numpy as np
 import pandas as pd
 import django
-
+from django.conf import settings
 import sys 
 from sklearn.metrics import (
     mean_absolute_error,
@@ -67,6 +67,7 @@ def load_location_dataset(location_id):
 
 def train_model(location_id):
     print("========== TRAINING STARTED ==========")
+    print(f"Sequence Length: {settings.SEQUENCE_LENGTH}")
     BASE_DIR = Path(__file__).resolve().parent
 
     SAVE_DIR = (
@@ -130,7 +131,7 @@ def train_model(location_id):
     # Sequence settings
     # ---------------------------------------------------
 
-    SEQUENCE_LENGTH = 6
+    SEQUENCE_LENGTH = settings.SEQUENCE_LENGTH
 
     training_config = {
         "sequence_length": SEQUENCE_LENGTH,
@@ -287,33 +288,42 @@ def train_model(location_id):
 
     pred_water_balance = pred_original[:, target_index]
     true_water_balance = true_original[:, target_index]
-    metrics = {
-    "rmse": float(
+    rmse = float(
         np.sqrt(
             mean_squared_error(
                 true_water_balance,
                 pred_water_balance
             )
         )
-    ),
+    )
 
-    "mae": float(
+    mae = float(
         mean_absolute_error(
             true_water_balance,
             pred_water_balance
         )
-    ),
+    )
 
-    "r2": float(
-        r2_score(
+    if len(y_test) < 2:
+        r2 = None
+    else:
+        r2_value = r2_score(
             true_water_balance,
             pred_water_balance
         )
-    ),
 
-    "train_samples": len(X_train),
-    "test_samples": len(X_test),
-}
+        if np.isnan(r2_value):
+            r2 = None
+        else:
+            r2 = float(r2_value)
+
+    metrics = {
+        "rmse": rmse,
+        "mae": mae,
+        "r2": r2,
+        "train_samples": len(X_train),
+        "test_samples": len(X_test),
+    }
 
     # ---------------------------------------------------
     # Save model

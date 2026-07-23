@@ -5,11 +5,38 @@ import {
   Grid,
   Divider,
   Chip,
+  Button,
+  CircularProgress,
 } from "@mui/material";
 
-export default function AIPredictionCard({ data }) {
-  if (!data) return null;
+import { useState } from "react";
+import { retrainModel } from "../../services/forecastApi";
 
+export default function AIPredictionCard({
+    data,
+    location,
+    onRetrained,
+  }) {
+  const [training, setTraining] = useState(false);
+
+  if (!data) return null;
+  const handleRetrain = async () => {
+    try {
+      setTraining(true);
+
+      await retrainModel(location);
+
+      alert("Model retrained successfully.");
+
+      if (onRetrained) {
+        onRetrained();
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setTraining(false);
+    }
+  };
   return (
     <Card
       sx={{
@@ -116,6 +143,26 @@ export default function AIPredictionCard({ data }) {
             </Typography>
           </Grid>
         </Grid>
+        <Divider sx={{ my: 3 }} />
+
+<Button
+  variant="contained"
+  fullWidth
+  disabled={training}
+  onClick={handleRetrain}
+>
+  {training ? (
+    <>
+      <CircularProgress
+        size={20}
+        sx={{ mr: 1, color: "white" }}
+      />
+      Retraining...
+    </>
+  ) : (
+    "Retrain Model"
+  )}
+</Button>
       </CardContent>
     </Card>
   );

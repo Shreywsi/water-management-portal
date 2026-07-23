@@ -9,10 +9,12 @@ __pycache__/
 
 # Environment variables
 .env
+.env.local
 
 # Django
 db.sqlite3
 *.log
+backend/staticfiles/
 
 # -----------------------------
 # Node / React
@@ -28,6 +30,15 @@ dist/
 # -----------------------------
 # macOS
 # -----------------------------
-.DS_Storebackend/staticfiles/
 .DS_Store
-backend/staticfiles/
+# ML generated files
+backend/ml/saved_models/
+
+# Exported datasets
+backend/uploads/datasets/
+
+# Redis
+backend/dump.rdb
+
+# Environment files
+frontend/.env*

@@ -6,9 +6,8 @@ from rest_framework.decorators import api_view, permission_classes, authenticati
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
-
 from ..models import Location, WaterBalance
-from groundwater.models import WaterBalance
+
 
 import logging
 
@@ -48,9 +47,6 @@ def water_balance_prediction(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def add_water_balance(request):
-
-     
-
     data = request.data
 
     try:
@@ -124,7 +120,6 @@ def add_water_balance(request):
     # Export datasets
     # Export only this location's dataset
     from ml.dataset_export import export_location_dataset
-    from ml.train import train_model
     rows = export_location_dataset(location.id)
 
     logger.info(
@@ -133,42 +128,22 @@ def add_water_balance(request):
         location.id,
     )
 
-    training_triggered = False
-    training_error = None
+    
 
-    if rows >= 8:
-        logger.info(
-            "Training model for location %s (synchronous)",
-            location.id
-        )
-        try:
-            train_model(location.id)
-            training_triggered = True
-            logger.info(
-                "Training complete for location %s",
-                location.id
-            )
-        except Exception as e:
-            logger.exception(
-                "Training failed for location %s",
-                location.id
-            )
-            training_error = str(e)
-    else:
-        logger.info(
-            "Skipping training. Only %s rows available.",
-            rows
-        )
+    logger.info(
+        "Dataset updated for location %s. Model will be retrained before the next prediction.",
+        location.id,
+    )
 
     return Response(
-        {
-            "success": True,
-            "id": record.id,
-            "delta_s": delta_s,
-            "training_triggered": training_triggered,
-            "training_error": training_error,
-        }
-    )
+    {
+        "success": True,
+        "id": record.id,
+        "delta_s": delta_s,
+        "training_triggered": False,
+        "message": "Water balance record saved successfully."
+    }
+)
 
 
 @api_view(["GET"])

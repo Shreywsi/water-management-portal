@@ -265,7 +265,9 @@ console.log(locations);
         forecast && (
 
           <AIPredictionCard
-            data={forecast}
+              data={forecast}
+              location={location}
+              onRetrained={() => loadForecast(period, location)}
           />
 
       )}

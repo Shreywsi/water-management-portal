@@ -43,12 +43,19 @@ def run_modflow_view(request):
 
 
 @api_view(["POST"])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
+
 
 def retrain_lstm(request):
-    from ml.retrain import retrain_model
-    location_id = request.data.get("location")
+    try:
+        location_id = int(request.data.get("location"))
+    except (TypeError, ValueError):
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid location."
+            },
+            status=400
+        )
 
     if not location_id:
 
@@ -56,6 +63,20 @@ def retrain_lstm(request):
             {
                 "success": False,
                 "message": "Location required."
+            },
+            status=400
+        )
+
+    from ml.dataset_export import export_location_dataset
+    from ml.retrain import retrain_model
+
+    rows = export_location_dataset(location_id)
+
+    if rows < 8:
+        return Response(
+            {
+                "success": False,
+                "message": f"Need at least 8 records. Only {rows} available."
             },
             status=400
         )
@@ -125,9 +146,14 @@ def ai_dashboard(request):
         with open(metrics_path) as f:
             metrics = json.load(f)
 
-    rmse = metrics.get("water_balance", {}).get("rmse")
-    mae = metrics.get("water_balance", {}).get("mae")
-    r2 = metrics.get("water_balance", {}).get("r2")
+    if "water_balance" in metrics:
+        wm = metrics["water_balance"]
+    else:
+        wm = metrics
+
+    rmse = wm.get("rmse")
+    mae = wm.get("mae")
+    r2 = wm.get("r2")
 
     train_samples = metrics.get("train_samples")
     test_samples = metrics.get("test_samples")
@@ -214,10 +240,36 @@ def forecast_api(request, period):
             },
             status=400
         )
+    from ml.dataset_export import export_location_dataset
+    from ml.train import train_model
 
+    model_dir = os.path.join(
+        settings.BASE_DIR,
+        "ml",
+        "saved_models",
+        f"location_{location.id}",
+    )
+
+    model_path = os.path.join(
+        model_dir,
+        "water_balance_model.keras",
+    )
     steps = periods[period]
+    if not os.path.exists(model_path):
+
+        rows = export_location_dataset(location.id)
+
+        if rows >= 8:
+            logger.info(
+                "No model found. Training Location %s...",
+                location.id,
+            )
+
+            train_model(location.id)
+        
 
     try:
+        print("Predicting for location:", location.id)
         forecast = predict_water_balance(
             location.id,
             steps
@@ -252,34 +304,41 @@ def forecast_api(request, period):
         location=location
     ).count()
 
-    rmse = metrics.get("water_balance", {}).get("rmse")
-    mae = metrics.get("water_balance", {}).get("mae")
-    r2 = metrics.get("water_balance", {}).get("r2")
+    if "water_balance" in metrics:
+        wm = metrics["water_balance"]
+    else:
+        wm = metrics
+
+    rmse = wm.get("rmse")
+    mae = wm.get("mae")
+    r2 = wm.get("r2")
 
     # -------------------------
     # Confidence
     # -------------------------
 
+    # -------------------------
+# Confidence
+    # -------------------------
+
     if r2 is None:
-        confidence = 0
+        confidence = None
+        confidence_level = "Insufficient data"
+
     else:
         confidence = round(max(0, min(r2 * 100, 100)), 1)
 
-    # -------------------------
-    # Confidence Level
-    # -------------------------
+        if confidence >= 90:
+            confidence_level = "Very High"
 
-    if confidence >= 90:
-        confidence_level = "Very High"
+        elif confidence >= 75:
+            confidence_level = "High"
 
-    elif confidence >= 75:
-        confidence_level = "High"
+        elif confidence >= 50:
+            confidence_level = "Medium"
 
-    elif confidence >= 50:
-        confidence_level = "Medium"
-
-    else:
-        confidence_level = "Low"
+        else:
+            confidence_level = "Low"
 
     # -------------------------
     # Prediction Range

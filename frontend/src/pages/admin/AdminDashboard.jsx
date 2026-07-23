@@ -15,7 +15,7 @@ import WaterBalanceCard from "../../components/WaterBalanceCard.jsx";
 import WaterMap from "../../components/WaterMap";
 import API_BASE from "../../config/api";
 
-import AIPredictionCard from "../../components/admin/AIPredictionCard";
+import AIPrediction from "./AIPrediction";
 
 export default function AdminDashboard() {
   const [mapRefreshKey, setMapRefreshKey] = useState(0);
@@ -110,7 +110,7 @@ export default function AdminDashboard() {
         </Box>
 
         {/* AI Prediction */}
-        <AIPredictionCard />
+        
 
         {/* Water Balance */}
         <WaterBalanceCard
@@ -131,7 +131,7 @@ export default function AdminDashboard() {
             // saveWaterBalance(values, deltaS);
           }}
         />
-
+        <AIPrediction />
         {/* GIS Tools + Map */}
         <Card
           elevation={3}
