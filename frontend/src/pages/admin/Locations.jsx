@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import API_BASE from "../../config/api";
 import {
@@ -13,7 +13,6 @@ import {
   IconButton,
   Alert,
 } from "@mui/material";
-
 import DeleteIcon from "@mui/icons-material/Delete";
 
 export default function Locations() {
@@ -21,71 +20,69 @@ export default function Locations() {
   const [locations, setLocations] = useState([]);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Guards against stale GET responses overwriting newer state
+  const requestIdRef = useRef(0);
 
   const loadLocations = async () => {
-  try {
-    console.log("API_BASE used:", API_BASE);
+    const thisRequestId = ++requestIdRef.current;
+    try {
+      const url = `${API_BASE}/location-list/`;
+      const res = await axios.get(url);
 
-    const url = `${API_BASE}/location-list/`;
+      // If a newer request has already started, ignore this stale response
+      if (thisRequestId !== requestIdRef.current) return;
 
-    console.log("FINAL REQUEST URL:", url);
-
-    const res = await axios.get(url);
-
-    console.log("Locations API response:", res.data);
-
-    setLocations(res.data);
-  } catch (err) {
-    console.error(err);
-  }
-};
+      setLocations(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     loadLocations();
   }, []);
 
   const addLocation = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || submitting) return;
+    setSubmitting(true);
 
     try {
-      const res = await axios.post(
-  `${API_BASE}/location/add/`,
-  {
-    name: name.trim(),
-  }
-);
+      const res = await axios.post(`${API_BASE}/location/add/`, {
+        name: name.trim(),
+      });
 
       if (res.data.success) {
         setMessage("Location added successfully.");
         setMessageType("success");
         setName("");
-        loadLocations();
+        await loadLocations();
+      } else {
+        setMessage(res.data.message || "Unable to add location.");
+        setMessageType("error");
       }
     } catch (err) {
-      setMessage(
-        err.response?.data?.message || "Unable to add location."
-      );
+      setMessage(err.response?.data?.message || "Unable to add location.");
       setMessageType("error");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const deleteLocation = async (id) => {
-    if (!window.confirm("Delete this location?")) return;
+  if (!window.confirm("Delete this location?")) return;
 
-    try {
-      await axios.delete(
-  `${API_BASE}/location/${id}/`
-);
-
-      setMessage("Location deleted.");
-      setMessageType("success");
-
-      loadLocations();
-    } catch (err) {
-      setMessage("Unable to delete location.");
-      setMessageType("error");
-    }
-  };
+  try {
+    await axios.delete(`${API_BASE}/location/${id}/`);
+    setMessage("Location deleted.");
+    setMessageType("success");
+    await loadLocations();
+  } catch (err) {
+    setMessage("Unable to delete location.");
+    setMessageType("error");
+  }
+};
 
   return (
     <Card sx={{ p: 4 }}>
@@ -94,19 +91,12 @@ export default function Locations() {
       </Typography>
 
       {message && (
-        <Alert
-          severity={messageType}
-          sx={{ mb: 2 }}
-        >
+        <Alert severity={messageType} sx={{ mb: 2 }}>
           {message}
         </Alert>
       )}
 
-      <Stack
-        direction="row"
-        spacing={2}
-        sx={{ mb: 3 }}
-      >
+      <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
         <TextField
           fullWidth
           label="Enter Location"
@@ -114,11 +104,8 @@ export default function Locations() {
           onChange={(e) => setName(e.target.value)}
         />
 
-        <Button
-          variant="contained"
-          onClick={addLocation}
-        >
-          Add
+        <Button variant="contained" onClick={addLocation} disabled={submitting}>
+          {submitting ? "Adding..." : "Add"}
         </Button>
       </Stack>
 
@@ -127,19 +114,12 @@ export default function Locations() {
           <ListItem
             key={location.id}
             secondaryAction={
-              <IconButton
-                color="error"
-                onClick={() =>
-                  deleteLocation(location.id)
-                }
-              >
+              <IconButton color="error" onClick={() => deleteLocation(location.id)}>
                 <DeleteIcon />
               </IconButton>
             }
           >
-            <ListItemText
-              primary={location.name}
-            />
+            <ListItemText primary={location.name} />
           </ListItem>
         ))}
       </List>
