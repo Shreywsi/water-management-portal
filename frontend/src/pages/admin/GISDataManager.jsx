@@ -10,7 +10,7 @@ import {
 } from "@mui/material";
 
 import UploadFileIcon from "@mui/icons-material/UploadFile";
-import API_BASE from "../../config/api";
+import { apiFetch } from "../../utils/api";
 
 export default function GISDataManager() {
   const [uploading, setUploading] = useState(false);
@@ -26,13 +26,10 @@ export default function GISDataManager() {
     try {
       setUploading(true);
 
-      const response = await fetch(
-        `${API_BASE}/gis/upload/`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      const response = await apiFetch("/gis/upload/", {
+        method: "POST",
+        body: formData,
+      });
 
       const data = await response.json();
 
@@ -48,8 +45,6 @@ export default function GISDataManager() {
       alert("Upload failed.");
     } finally {
       setUploading(false);
-
-      // Reset input so the same file can be uploaded again
       event.target.value = "";
     }
   };

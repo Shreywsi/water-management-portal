@@ -5,12 +5,12 @@ from pathlib import Path
 
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
-
+from django.db import connection  
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
-
+from groundwater.models import GisLayers
 import logging
 
 logger = logging.getLogger(__name__)
@@ -120,6 +120,7 @@ def upload_gis_file(request):
             "-nln", table_name,
             "-overwrite",
         ]
+        
 
         try:
             result = subprocess.run(
@@ -152,6 +153,14 @@ def upload_gis_file(request):
                 },
                 status=500,
             )
+        GisLayers.objects.update_or_create(
+            table_name=table_name,
+            defaults={
+                "layer_name": table_name.replace("_", " ").title(),
+                "geometry_type": "Unknown",
+                "visible": True,
+            },
+        )
 
     else:
         table_name = None
@@ -164,3 +173,45 @@ def upload_gis_file(request):
         "shp_file": shp_file,
         "extracted_files": extracted_files,
     })
+
+
+@api_view(["GET"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def list_gis_layers(request):
+
+    layers = []
+
+    with connection.cursor() as cursor:
+
+        for layer in GisLayers.objects.filter(visible=True).order_by("layer_name"):
+
+            geometry_column = "wkb_geometry"
+            srid = 4326
+
+            try:
+                cursor.execute(f"""
+                    SELECT f_geometry_column, srid
+                    FROM geometry_columns
+                    WHERE f_table_name = %s
+                    LIMIT 1;
+                """, [layer.table_name])
+
+                row = cursor.fetchone()
+
+                if row:
+                    geometry_column, srid = row
+
+            except Exception:
+                pass
+
+            layers.append({
+                "id": layer.id,
+                "layer_name": layer.layer_name,
+                "table_name": layer.table_name,
+                "geometry_column": geometry_column,
+                "geometry_type": layer.geometry_type,
+                "srid": srid,
+            })
+
+    return Response(layers)

@@ -30,8 +30,9 @@ from .views import (
     forecast_api,
     water_balance_history,
     add_location,
-location_list,
-delete_location,
+    list_gis_layers,
+    location_list,
+    delete_location,
     
 
 )
@@ -56,6 +57,7 @@ urlpatterns = [
     path("salinity/add/", add_salinity),
     path("village-clusters/", village_clusters_geojson),
     path("gis/upload/", upload_gis_file),
+    path("gis/layers/", list_gis_layers),
     path("run-gempy/", run_gempy),
     path("run-modflow/", run_modflow_view),
     path("ml/predict/", water_balance_prediction),
