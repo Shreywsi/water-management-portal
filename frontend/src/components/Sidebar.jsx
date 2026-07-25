@@ -35,11 +35,7 @@ export default function Sidebar() {
     icon: <DashboardIcon />,
     path: "/admin",
   },
-  {
-    title: "AI Prediction",
-    icon: <PsychologyIcon />,
-    path: "/admin/ai",
-  },
+  
   {
     title: "GIS Workspace",
     icon: <MapIcon />,
@@ -51,9 +47,14 @@ export default function Sidebar() {
     path: "/admin/locations",
   },
   {
-    title: "Water History",
+    title: "Water Balance",
     icon: <WaterDropRoundedIcon />,
     path: "/admin/water-history",
+  },
+  {
+    title: "AI Prediction",
+    icon: <PsychologyIcon />,
+    path: "/admin/ai",
   },
 ];
 

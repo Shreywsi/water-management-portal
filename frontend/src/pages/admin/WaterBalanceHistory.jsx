@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import API_BASE from "../../config/api";
 import Sidebar from "../../components/Sidebar";
+import WaterBalanceCard from "../../components/WaterBalanceCard.jsx";
 import {
   Card,
   Typography,
@@ -20,7 +21,21 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Avatar,
+  Stack,
+  InputAdornment,
 } from "@mui/material";
+
+import HistoryIcon from "@mui/icons-material/History";
+import SearchIcon from "@mui/icons-material/Search";
+import DescriptionIcon from "@mui/icons-material/Description";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import TrendingDownIcon from "@mui/icons-material/TrendingDown";
+import WaterDropIcon from "@mui/icons-material/WaterDrop";
+import PlaceIcon from "@mui/icons-material/Place";
+
+const NAVY = "#1E293B"; // matches sidebar
+const NAVY_SOFT = "#1E293B14";
 
 export default function WaterBalanceHistory() {
   const [history, setHistory] = useState([]);
@@ -68,227 +83,451 @@ export default function WaterBalanceHistory() {
   };
 
   const filteredHistory = history.filter((item) =>
-  `${item.date} ${item.time}`
-    .toLowerCase()
-    .includes(search.toLowerCase())
-);
+    `${item.date} ${item.time}`
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  );
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
 
-        <Sidebar />
+      <Sidebar />
+
+      <Box
+        sx={{
+          flex: 1,
+          p: { xs: 2.5, md: 4 },
+          bgcolor: "#f5f7fb",
+        }}
+      >
+
+        
+
+        {/* ============================================================
+            WATER BALANCE ENTRY
+        ============================================================ */}
 
         <Box
-        sx={{
-            flex: 1,
+          sx={{
+            mb: 4,
             p: 3,
-            bgcolor: "#f5f7fb",
-        }}
+            borderRadius: 3,
+            bgcolor: "#FFFFFF",
+            border: "1px solid",
+            borderColor: "divider",
+            boxShadow: "0 2px 8px rgba(15,23,42,0.05)",
+          }}
         >
-
-      <Typography variant="h4" fontWeight="bold" gutterBottom>
-        Water Balance History
-      </Typography>
-
-      {/* LOCATION SELECTOR */}
-      <FormControl sx={{ minWidth: 250, mb: 3 }}>
-        <InputLabel>Location</InputLabel>
-        <Select
-          value={selectedLocation}
-          label="Location"
-          onChange={(e) => setSelectedLocation(e.target.value)}
-        >
-          {locations.length === 0 ? (
-            <MenuItem disabled>No Locations Found</MenuItem>
-          ) : (
-            locations.map((loc) => (
-              <MenuItem key={loc.id} value={loc.id}>
-                {loc.name}
-              </MenuItem>
-            ))
-          )}
-        </Select>
-      </FormControl>
-
-      {/* SUMMARY CARDS */}
-
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-
-        <Grid item xs={12} md={3}>
-          <Paper sx={{ p: 2 }}>
-            <Typography color="text.secondary">
-              Total Records
-            </Typography>
-
-            <Typography variant="h4">
-              {summary.total_records ?? 0}
-            </Typography>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={3}>
-          <Paper sx={{ p: 2 }}>
-            <Typography color="text.secondary">
-              Net Recharge
-            </Typography>
-
-            <Typography variant="h4" color="success.main">
-              {summary.recharge_days ?? 0}
-            </Typography>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={3}>
-          <Paper sx={{ p: 2 }}>
-            <Typography color="text.secondary">
-              Net Depletion
-            </Typography>
-
-            <Typography variant="h4" color="error.main">
-              {summary.depletion_days ?? 0}
-            </Typography>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={3}>
-          <Paper sx={{ p: 2 }}>
-            <Typography color="text.secondary">
-              Latest ΔS
-            </Typography>
-
-            <Typography
-              variant="h4"
-              color={
-               summary.average_delta_s?.toFixed(2) ?? "--" >= 0
-                  ? "success.main"
-                  : "error.main"
-              }
+          <Stack direction="row" spacing={1.5} alignItems="center" mb={2}>
+            <Avatar
+              variant="rounded"
+              sx={{
+                bgcolor: NAVY_SOFT,
+                color: NAVY,
+                width: 40,
+                height: 40,
+              }}
             >
-              {history[0]?.delta_s ?? "--"}
-            </Typography>
-          </Paper>
-        </Grid>
+              <WaterDropIcon fontSize="small" />
+            </Avatar>
 
-      </Grid>
+            <Box>
+              <Typography variant="h5" fontWeight={700}>
+                Water Balance Entry
+              </Typography>
 
-      {/* SEARCH */}
+              <Typography variant="body2" color="text.secondary">
+                Enter recharge and depletion values to calculate and save a new water
+                balance record.
+              </Typography>
+            </Box>
+          </Stack>
 
-      <TextField
-        fullWidth
-        label="Search by Date / Timestamp"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        sx={{ mb: 3 }}
-      />
+          <Box sx={{ mb: 1 }}>
+            <WaterBalanceCard
+              initialValues={{
+                Rr: 120,
+                Re: 30,
+                Ri: 15,
+                I: 5,
+                Si: 8,
+                Se: 10,
+                O: 12,
+                Et: 60,
+                Dp: 55,
+              }}
+              unit="MCM"
+              onChange={() => {
+                // e.g. save to backend
+                // saveWaterBalance(values, deltaS);
+              }}
+            />
+          </Box>
+        </Box>
 
-      {/* TABLE */}
+        {/* ============================================================
+            HISTORY & ANALYTICS
+        ============================================================ */}
 
-      <Card>
+        <Box
+          sx={{
+            mt: 5,
+            p: 3,
+            borderRadius: 3,
+            bgcolor: "#FFFFFF",
+            border: "1px solid",
+            borderColor: "divider",
+            boxShadow: "0 2px 8px rgba(15,23,42,0.05)",
+          }}
+        >
+          <Stack direction="row" spacing={1.5} alignItems="center" mb={3}>
+            <Avatar
+              variant="rounded"
+              sx={{
+                bgcolor: NAVY_SOFT,
+                color: NAVY,
+                width: 40,
+                height: 40,
+              }}
+            >
+              <HistoryIcon fontSize="small" />
+            </Avatar>
 
-        <TableContainer>
+            <Box>
+              <Typography variant="h5" fontWeight={700}>
+                Water Balance History & Analytics
+              </Typography>
 
-          <Table>
+              <Typography variant="body2" color="text.secondary">
+                Review previously saved records, analyse trends, and monitor water
+                balance changes over time.
+              </Typography>
+            </Box>
+          </Stack>
 
-            <TableHead>
+          {/* LOCATION SELECTOR */}
+          <FormControl
+            sx={{
+              minWidth: 260,
+              mb: 3,
+              bgcolor: "#fff",
+              borderRadius: 1.5,
+            }}
+          >
+            <InputLabel>Location</InputLabel>
+            <Select
+              value={selectedLocation}
+              label="Location"
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              startAdornment={
+                <InputAdornment position="start" sx={{ ml: 1 }}>
+                  <PlaceIcon fontSize="small" sx={{ color: NAVY }} />
+                </InputAdornment>
+              }
+              sx={{
+                borderRadius: 1.5,
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "divider",
+                },
+              }}
+            >
+              {locations.length === 0 ? (
+                <MenuItem disabled>No Locations Found</MenuItem>
+              ) : (
+                locations.map((loc) => (
+                  <MenuItem key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </MenuItem>
+                ))
+              )}
+            </Select>
+          </FormControl>
 
-              <TableRow>
+          {/* SUMMARY CARDS */}
 
-                <TableCell>ID</TableCell>
+          <Grid container spacing={2} sx={{ mb: 3 }}>
 
-                <TableCell>Date</TableCell>
-
-                <TableCell>Time</TableCell>
-
-                <TableCell>Timestamp</TableCell>
-
-                <TableCell align="center">ΔS</TableCell>
-
-                <TableCell>Status</TableCell>
-
-              </TableRow>
-
-            </TableHead>
-
-            <TableBody>
-
-              {filteredHistory.map((item, index) => (
-
-                <TableRow
-                  key={item.id}
-                  sx={{
-                    backgroundColor:
-                      index === 0 ? "#E3F2FD" : "inherit",
-                  }}
-                >
-
-                  <TableCell>{item.id}</TableCell>
-
-                  <TableCell>
-                    {item.date}
-                  </TableCell>
-
-                  <TableCell>
-                    {item.date}
-                  </TableCell>
-
-                  <TableCell>
-                    {`${item.date} ${item.time}`}
-                  </TableCell>
-
-                  <TableCell
-                    align="center"
-                    sx={{
-                      fontWeight: "bold",
-                      color:
-                        item.delta_s >= 0
-                          ? "green"
-                          : "red",
-                    }}
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2.5,
+                  borderRadius: 2.5,
+                  borderColor: "divider",
+                  boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
+                }}
+              >
+                <Stack direction="row" spacing={1.5} alignItems="center" mb={1}>
+                  <Avatar
+                    variant="rounded"
+                    sx={{ bgcolor: NAVY_SOFT, color: NAVY, width: 34, height: 34 }}
                   >
-                    {item.delta_s >= 0 ? "⬆ " : "⬇ "}
-                    {item.delta_s}
-                  </TableCell>
+                    <DescriptionIcon fontSize="small" />
+                  </Avatar>
+                  <Typography color="text.secondary" variant="body2" fontWeight={500}>
+                    Total Records
+                  </Typography>
+                </Stack>
 
-                  <TableCell>
+                <Typography variant="h4" fontWeight={700}>
+                  {summary.total_records ?? 0}
+                </Typography>
+              </Paper>
+            </Grid>
 
-                    <Chip
-                      color={
-                        item.delta_s >= 0
-                          ? "success"
-                          : "error"
-                      }
-                      label={
-                        item.delta_s >= 0
-                          ? "Net Recharge"
-                          : "Net Depletion"
-                      }
-                    />
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2.5,
+                  borderRadius: 2.5,
+                  borderColor: "divider",
+                  boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
+                }}
+              >
+                <Stack direction="row" spacing={1.5} alignItems="center" mb={1}>
+                  <Avatar
+                    variant="rounded"
+                    sx={{ bgcolor: "success.50", color: "success.main", width: 34, height: 34 }}
+                  >
+                    <TrendingUpIcon fontSize="small" />
+                  </Avatar>
+                  <Typography color="text.secondary" variant="body2" fontWeight={500}>
+                    Net Recharge
+                  </Typography>
+                </Stack>
 
-                    {index === 0 && (
-                      <Chip
-                        label="Latest"
-                        color="primary"
-                        size="small"
-                        sx={{ ml: 1 }}
-                      />
-                    )}
+                <Typography variant="h4" fontWeight={700} color="success.main">
+                  {summary.recharge_days ?? 0}
+                </Typography>
+              </Paper>
+            </Grid>
 
-                  </TableCell>
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2.5,
+                  borderRadius: 2.5,
+                  borderColor: "divider",
+                  boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
+                }}
+              >
+                <Stack direction="row" spacing={1.5} alignItems="center" mb={1}>
+                  <Avatar
+                    variant="rounded"
+                    sx={{ bgcolor: "error.50", color: "error.main", width: 34, height: 34 }}
+                  >
+                    <TrendingDownIcon fontSize="small" />
+                  </Avatar>
+                  <Typography color="text.secondary" variant="body2" fontWeight={500}>
+                    Net Depletion
+                  </Typography>
+                </Stack>
 
-                </TableRow>
+                <Typography variant="h4" fontWeight={700} color="error.main">
+                  {summary.depletion_days ?? 0}
+                </Typography>
+              </Paper>
+            </Grid>
 
-              ))}
+            <Grid item xs={12} sm={6} md={3}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2.5,
+                  borderRadius: 2.5,
+                  borderColor: "divider",
+                  boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
+                }}
+              >
+                <Stack direction="row" spacing={1.5} alignItems="center" mb={1}>
+                  <Avatar
+                    variant="rounded"
+                    sx={{ bgcolor: NAVY_SOFT, color: NAVY, width: 34, height: 34 }}
+                  >
+                    <WaterDropIcon fontSize="small" />
+                  </Avatar>
+                  <Typography color="text.secondary" variant="body2" fontWeight={500}>
+                    Latest ΔS
+                  </Typography>
+                </Stack>
 
-            </TableBody>
+                <Typography
+                  variant="h4"
+                  fontWeight={700}
+                  color={
+                    summary.average_delta_s?.toFixed(2) ?? "--" >= 0
+                      ? "success.main"
+                      : "error.main"
+                  }
+                >
+                  {history[0]?.delta_s ?? "--"}
+                </Typography>
+              </Paper>
+            </Grid>
 
-          </Table>
+          </Grid>
 
-        </TableContainer>
+          {/* SEARCH */}
 
-      </Card>
+          <TextField
+            fullWidth
+            label="Search by Date / Timestamp"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            sx={{
+              mb: 3,
+              bgcolor: "#fff",
+              borderRadius: 1.5,
+              "& .MuiOutlinedInput-root": { borderRadius: 1.5 },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          {/* TABLE */}
+
+          <Card
+            variant="outlined"
+            sx={{
+              borderRadius: 2.5,
+              borderColor: "divider",
+              boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
+              overflow: "hidden",
+            }}
+          >
+
+            <TableContainer>
+
+              <Table>
+
+                <TableHead>
+
+                  <TableRow sx={{ bgcolor: NAVY }}>
+
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>ID</TableCell>
+
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Date</TableCell>
+
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Time</TableCell>
+
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Timestamp</TableCell>
+
+                    <TableCell align="center" sx={{ color: "#fff", fontWeight: 600 }}>ΔS</TableCell>
+
+                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Status</TableCell>
+
+                  </TableRow>
+
+                </TableHead>
+
+                <TableBody>
+
+                  {filteredHistory.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                        <Typography color="text.secondary" variant="body2">
+                          No records match your search.
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+
+                  {filteredHistory.map((item, index) => (
+
+                    <TableRow
+                      key={item.id}
+                      hover
+                      sx={{
+                        backgroundColor:
+                          index === 0 ? "#E3F2FD" : "inherit",
+                        "&:last-child td": { borderBottom: 0 },
+                      }}
+                    >
+
+                      <TableCell sx={{ color: "text.secondary" }}>{item.id}</TableCell>
+
+                      <TableCell>
+                        {item.date}
+                      </TableCell>
+
+                      <TableCell>
+                        {item.date}
+                      </TableCell>
+
+                      <TableCell sx={{ color: "text.secondary" }}>
+                        {`${item.date} ${item.time}`}
+                      </TableCell>
+
+                      <TableCell
+                        align="center"
+                        sx={{
+                          fontWeight: 700,
+                          color:
+                            item.delta_s >= 0
+                              ? "success.main"
+                              : "error.main",
+                        }}
+                      >
+                        {item.delta_s >= 0 ? "⬆ " : "⬇ "}
+                        {item.delta_s}
+                      </TableCell>
+
+                      <TableCell>
+
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Chip
+                            color={
+                              item.delta_s >= 0
+                                ? "success"
+                                : "error"
+                            }
+                            size="small"
+                            label={
+                              item.delta_s >= 0
+                                ? "Net Recharge"
+                                : "Net Depletion"
+                            }
+                            sx={{ fontWeight: 500 }}
+                          />
+
+                          {index === 0 && (
+                            <Chip
+                              label="Latest"
+                              size="small"
+                              sx={{
+                                bgcolor: NAVY,
+                                color: "#fff",
+                                fontWeight: 500,
+                              }}
+                            />
+                          )}
+                        </Stack>
+
+                      </TableCell>
+
+                    </TableRow>
+
+                  ))}
+
+                </TableBody>
+
+              </Table>
+
+            </TableContainer>
+
+          </Card>
 
         </Box>
 
-  </Box>
-);
+      </Box>
+
+    </Box>
+  );
 }

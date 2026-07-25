@@ -5,8 +5,7 @@ import {
   Stack,
 } from "@mui/material";
 
-import WaterBalanceCard from "../../components/WaterBalanceCard.jsx";
-import AIPrediction from "./AIPrediction";
+
 
 export default function AdminDashboard() {
   return (
@@ -22,28 +21,8 @@ export default function AdminDashboard() {
           </Typography>
         </Box>
 
-        {/* Water Balance */}
-        <WaterBalanceCard
-          initialValues={{
-            Rr: 120,
-            Re: 30,
-            Ri: 15,
-            I: 5,
-            Si: 8,
-            Se: 10,
-            O: 12,
-            Et: 60,
-            Dp: 55,
-          }}
-          unit="MCM"
-          onChange={() => {
-            // e.g. save to backend
-            // saveWaterBalance(values, deltaS);
-          }}
-        />
-
         {/* AI Prediction */}
-        <AIPrediction />
+        
       </Stack>
     </Container>
   );

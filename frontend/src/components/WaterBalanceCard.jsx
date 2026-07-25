@@ -479,10 +479,24 @@ export default function WaterBalanceCard({
           </Typography>
         </Box>
         <Stack direction="row" justifyContent="flex-end" sx={{ mt: 3 }}>
-          <Button variant="contained" color="primary" onClick={saveWaterBalance} disabled={saving}>
-            {saving ? "Saving..." : "Save Water Balance"}
-          </Button>
-        </Stack>
+  <Button
+    variant="contained"
+    onClick={saveWaterBalance}
+    disabled={saving}
+    sx={{
+      bgcolor: "#1E293B",
+      "&:hover": {
+        bgcolor: "#0F172A",
+      },
+      "&:disabled": {
+        bgcolor: "#94A3B8",
+        color: "#FFFFFF",
+      },
+    }}
+  >
+    {saving ? "Saving..." : "Save Water Balance"}
+  </Button>
+</Stack>
       </Collapse>
     </Card>
   );
