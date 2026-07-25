@@ -1,19 +1,40 @@
 import { useState } from "react";
 import {
+  Container,
   Box,
   Card,
   CardContent,
+  CardHeader,
   Typography,
   Button,
   Stack,
   Divider,
+  Chip,
+  Avatar,
+  Alert,
+  Paper,
 } from "@mui/material";
 
 import UploadFileIcon from "@mui/icons-material/UploadFile";
+import MapIcon from "@mui/icons-material/Map";
+import TerrainIcon from "@mui/icons-material/Terrain";
+import LayersIcon from "@mui/icons-material/Layers";
+import WaterDropIcon from "@mui/icons-material/WaterDrop";
+import PlayCircleIcon from "@mui/icons-material/PlayCircle";
+
 import { apiFetch } from "../../utils/api";
+import WaterMap from "../../components/WaterMap";
+import config from "../../config/api";
+
+const { API_BASE } = config;
+
+const ACCENT = "#1B2A4A"; // navy, matches sidebar
 
 export default function GISDataManager() {
   const [uploading, setUploading] = useState(false);
+  const [mapRefreshKey, setMapRefreshKey] = useState(0);
+  const [gempyLoading, setGempyLoading] = useState(false);
+  const [gempyMessage, setGempyMessage] = useState("");
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -37,6 +58,7 @@ export default function GISDataManager() {
 
       if (response.ok) {
         alert(`Uploaded: ${data.filename}`);
+        setMapRefreshKey((prev) => prev + 1);
       } else {
         alert(data.error || "Upload failed.");
       }
@@ -49,73 +71,327 @@ export default function GISDataManager() {
     }
   };
 
+  const runGemPy = async () => {
+    try {
+      setGempyLoading(true);
+      setGempyMessage("");
+
+      const response = await fetch(`${API_BASE}/run-gempy/`, {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        console.log(data);
+        setGempyMessage(`Loaded ${data.well_count} wells from PostgreSQL`);
+      } else {
+        setGempyMessage("GemPy failed.");
+      }
+    } catch {
+      setGempyMessage("Could not connect to backend.");
+    } finally {
+      setGempyLoading(false);
+    }
+  };
+
+  const handleOpenGIS = async () => {
+    try {
+      // Check if launcher is running
+      const statusResponse = await fetch("http://127.0.0.1:5001/status");
+
+      if (!statusResponse.ok) {
+        alert("Water Management Launcher is not running.");
+        return;
+      }
+
+      const status = await statusResponse.json();
+
+      if (!status.installed) {
+        alert("QGIS is not installed on this computer.");
+        return;
+      }
+
+      // Ask launcher to open QGIS
+      const response = await fetch("http://127.0.0.1:5001/open-qgis", {
+        method: "POST",
+      });
+
+      const result = await response.json();
+
+      alert(result.message);
+    } catch (error) {
+      console.error(error);
+
+      alert(
+        "Water Management Launcher is not running.\n\nPlease start the launcher first."
+      );
+    }
+  };
+
+  const runModflow = async () => {
+    const response = await fetch(`${API_BASE}/run-modflow/`, {
+      method: "POST",
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      alert(
+        `✅ MODFLOW simulation completed successfully!\n\nWorkspace:\n${data.workspace}`
+      );
+    } else {
+      alert(`❌ ${data.error}`);
+    }
+  };
+
   return (
-    <Box>
-      <Typography variant="h4" fontWeight="bold" mb={1}>
-        GIS Data Manager
-      </Typography>
-
-      <Typography color="text.secondary" mb={4}>
-        Import GIS layers and manage them from one place.
-      </Typography>
-
-      <Card elevation={3}>
-        <CardContent>
-          <Stack spacing={3}>
-            <Box>
-              <Typography variant="h6">
-                Import GIS Layer
-              </Typography>
-
-              <Typography
-                variant="body2"
-                color="text.secondary"
-              >
-                Supported formats:
-                <br />
-                • ZIP Shapefile (.zip)
-                <br />
-                • GeoJSON (.geojson)
-                <br />
-                • KML (.kml)
-                <br />
-                • CSV (.csv)
-              </Typography>
-            </Box>
-
-            <input
-              id="gis-upload"
-              type="file"
-              hidden
-              accept=".zip,.geojson,.kml,.csv"
-              onChange={handleFileUpload}
-            />
-
-            <label htmlFor="gis-upload">
-              <Button
-                variant="contained"
-                component="span"
-                startIcon={<UploadFileIcon />}
-                disabled={uploading}
-              >
-                {uploading ? "Uploading..." : "Upload GIS File"}
-              </Button>
-            </label>
-
-            <Divider />
+    <Container
+      maxWidth="xl"
+      sx={{
+        py: { xs: 3, sm: 4, md: 5 },
+        px: { xs: 2, sm: 3, md: 4 },
+      }}
+    >
+      <Stack spacing={{ xs: 3, md: 4 }}>
+        {/* Page header */}
+        <Box>
+          <Stack direction="row" spacing={2} alignItems="center" mb={1}>
+            <Avatar
+              variant="rounded"
+              sx={{
+                bgcolor: `${ACCENT}1A`,
+                color: ACCENT,
+                width: 48,
+                height: 48,
+              }}
+            >
+              <LayersIcon />
+            </Avatar>
 
             <Box>
-              <Typography variant="h6" mb={2}>
-                Imported Layers
+              <Typography variant="h4" fontWeight={700}>
+                GIS Data Manager
               </Typography>
 
               <Typography color="text.secondary">
-                No layers uploaded yet.
+                Import GIS layers and manage them from one place.
               </Typography>
             </Box>
           </Stack>
-        </CardContent>
-      </Card>
-    </Box>
+        </Box>
+
+        {/* Import card */}
+        <Card
+          variant="outlined"
+          sx={{
+            borderRadius: 3,
+            borderColor: "divider",
+            boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
+          }}
+        >
+          <CardHeader
+            avatar={
+              <Avatar sx={{ bgcolor: `${ACCENT}1A`, color: ACCENT }}>
+                <UploadFileIcon fontSize="small" />
+              </Avatar>
+            }
+            title={
+              <Typography variant="h6" fontWeight={600}>
+                Import GIS Layer
+              </Typography>
+            }
+            subheader="Add a new layer to your workspace"
+            sx={{
+              pb: 2,
+              alignItems: "center",
+            }}
+          />
+
+          <CardContent>
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              spacing={3}
+              alignItems={{ xs: "stretch", md: "center" }}
+              divider={
+                <Divider
+                  orientation="vertical"
+                  flexItem
+                  sx={{ display: { xs: "none", md: "block" } }}
+                />
+              }
+            >
+              {/* Left: upload button + helper text */}
+              <Paper
+                variant="outlined"
+                sx={{
+                  flex: 1,
+                  borderStyle: "dashed",
+                  borderColor: "divider",
+                  borderRadius: 2,
+                  px: 3,
+                  py: 3,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  bgcolor: "action.hover",
+                }}
+              >
+                <input
+                  id="gis-upload"
+                  type="file"
+                  hidden
+                  accept=".zip,.geojson,.kml,.csv"
+                  onChange={handleFileUpload}
+                />
+
+                <label htmlFor="gis-upload">
+                  <Button
+                    variant="contained"
+                    component="span"
+                    startIcon={<UploadFileIcon />}
+                    disabled={uploading}
+                    disableElevation
+                    sx={{
+                      bgcolor: ACCENT,
+                      "&:hover": { bgcolor: "#101A30" },
+                    }}
+                  >
+                    {uploading ? "Uploading…" : "Upload GIS File"}
+                  </Button>
+                </label>
+
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                  mt={1.5}
+                >
+                  Drop a file on the button above or click to browse
+                </Typography>
+              </Paper>
+
+              
+            </Stack>
+          </CardContent>
+        </Card>
+
+        {/* GIS Tools + Map */}
+        <Card
+          variant="outlined"
+          sx={{
+            borderRadius: 3,
+            borderColor: "divider",
+            boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
+          }}
+        >
+          <CardHeader
+            avatar={
+              <Avatar sx={{ bgcolor: `${ACCENT}1A`, color: ACCENT }}>
+                <WaterDropIcon fontSize="small" />
+              </Avatar>
+            }
+            title={
+              <Typography variant="h6" fontWeight={600}>
+                Water Resources Map
+              </Typography>
+            }
+            subheader="Launch modeling tools and view spatial data"
+            sx={{
+              pb: 2,
+              alignItems: "center",
+            }}
+          />
+
+          <CardContent>
+            <Stack spacing={2.5}>
+              <Stack
+                direction="row"
+                spacing={2}
+                flexWrap="wrap"
+                useFlexGap
+                alignItems="center"
+              >
+                <Button
+                  variant="contained"
+                  startIcon={<MapIcon />}
+                  disableElevation
+                  onClick={handleOpenGIS}
+                  sx={{
+                    bgcolor: ACCENT,
+                    "&:hover": { bgcolor: "#101A30" },
+                  }}
+                >
+                  Open GIS Workspace
+                </Button>
+
+                <Button
+                  variant="outlined"
+                  startIcon={<TerrainIcon />}
+                  onClick={runGemPy}
+                  disabled={gempyLoading}
+                  sx={{
+                    borderColor: ACCENT,
+                    color: ACCENT,
+                    "&:hover": {
+                      borderColor: "#101A30",
+                      bgcolor: `${ACCENT}0D`,
+                    },
+                  }}
+                >
+                  {gempyLoading ? "Running…" : "Run GemPy"}
+                </Button>
+
+                <Button
+                  variant="outlined"
+                  startIcon={<PlayCircleIcon />}
+                  onClick={runModflow}
+                  sx={{
+                    borderColor: ACCENT,
+                    color: ACCENT,
+                    "&:hover": {
+                      borderColor: "#101A30",
+                      bgcolor: `${ACCENT}0D`,
+                    },
+                  }}
+                >
+                  Run MODFLOW
+                </Button>
+              </Stack>
+
+              {gempyMessage && (
+                <Alert
+                  severity={
+                    gempyMessage.toLowerCase().includes("fail") ||
+                    gempyMessage.toLowerCase().includes("could not")
+                      ? "error"
+                      : "success"
+                  }
+                  variant="outlined"
+                  sx={{ borderRadius: 2 }}
+                >
+                  {gempyMessage}
+                </Alert>
+              )}
+
+              <Box
+                sx={{
+                  width: "100%",
+                  height: 550,
+                  position: "relative",
+                  borderRadius: 2,
+                  overflow: "hidden",
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                <WaterMap refreshKey={mapRefreshKey} />
+              </Box>
+            </Stack>
+          </CardContent>
+        </Card>
+      </Stack>
+    </Container>
   );
 }
