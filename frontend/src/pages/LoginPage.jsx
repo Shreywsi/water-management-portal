@@ -16,7 +16,7 @@ import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlin
 
 import API_BASE from "../config/api";
 
-const PANEL   = "#1B2A4A";
+const PANEL   = "#1E293B";
 const PANEL_DARK = "#152238";
 const ACCENT  = "#2A3F6F";
 const FORM_BG = "#fdf8f2";

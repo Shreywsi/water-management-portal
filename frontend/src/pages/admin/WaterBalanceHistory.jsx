@@ -118,30 +118,7 @@ export default function WaterBalanceHistory() {
             boxShadow: "0 2px 8px rgba(15,23,42,0.05)",
           }}
         >
-          <Stack direction="row" spacing={1.5} alignItems="center" mb={2}>
-            <Avatar
-              variant="rounded"
-              sx={{
-                bgcolor: NAVY_SOFT,
-                color: NAVY,
-                width: 40,
-                height: 40,
-              }}
-            >
-              <WaterDropIcon fontSize="small" />
-            </Avatar>
-
-            <Box>
-              <Typography variant="h5" fontWeight={700}>
-                Water Balance Entry
-              </Typography>
-
-              <Typography variant="body2" color="text.secondary">
-                Enter recharge and depletion values to calculate and save a new water
-                balance record.
-              </Typography>
-            </Box>
-          </Stack>
+          
 
           <Box sx={{ mb: 1 }}>
             <WaterBalanceCard
@@ -207,13 +184,14 @@ export default function WaterBalanceHistory() {
 
           {/* LOCATION SELECTOR */}
           <FormControl
-            sx={{
-              minWidth: 260,
-              mb: 3,
-              bgcolor: "#fff",
-              borderRadius: 1.5,
-            }}
-          >
+  sx={{
+    minWidth: 260,
+    mt: 3,
+    mb: 3,
+    bgcolor: "#fff",
+    borderRadius: 1.5,
+  }}
+>
             <InputLabel>Location</InputLabel>
             <Select
               value={selectedLocation}

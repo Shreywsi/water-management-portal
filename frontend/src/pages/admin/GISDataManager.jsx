@@ -28,7 +28,7 @@ import config from "../../config/api";
 
 const { API_BASE } = config;
 
-const ACCENT = "#1B2A4A"; // navy, matches sidebar
+const ACCENT = "#1E293B"; // navy, matches sidebar
 
 export default function GISDataManager() {
   const [uploading, setUploading] = useState(false);

@@ -177,7 +177,7 @@ const trendLabel =
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: "#1B2A4A",
+        backgroundColor: "#1E293B",
         padding: 8,
         cornerRadius: 6,
         titleFont: { size: 11 },

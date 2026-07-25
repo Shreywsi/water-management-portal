@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
-
+from django.conf import settings
 
 # ----------------------------
 # LOCATION
@@ -296,3 +296,28 @@ class GisLayers(models.Model):
         managed = True
         db_table = 'gis_layers'
 
+class ResourceFolder(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    description = models.TextField(blank=True, null=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
+class ResourceFile(models.Model):
+    folder = models.ForeignKey(ResourceFolder, related_name="files", on_delete=models.CASCADE)
+    filename = models.CharField(max_length=500)
+    content_type = models.CharField(max_length=150, blank=True)
+    size = models.PositiveIntegerField(default=0)
+    data = models.BinaryField()
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.filename

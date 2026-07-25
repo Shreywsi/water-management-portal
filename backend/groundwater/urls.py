@@ -33,6 +33,10 @@ from .views import (
     list_gis_layers,
     location_list,
     delete_location,
+    resource_folders,
+    resource_folder_detail,
+    resource_upload_files,
+    resource_file_detail,
     
 
 )
@@ -80,4 +84,8 @@ path(
     delete_location,
     name="delete_location"
 ),
+    path("resources/folders/", resource_folders),
+    path("resources/folders/<int:folder_id>/", resource_folder_detail),
+    path("resources/folders/<int:folder_id>/upload/", resource_upload_files),
+    path("resources/files/<int:file_id>/", resource_file_detail),
 ]

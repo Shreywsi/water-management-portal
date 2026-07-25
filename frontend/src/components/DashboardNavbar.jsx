@@ -17,7 +17,7 @@ function DashboardNavbar() {
       position="fixed"
       elevation={0}
       sx={{
-        bgcolor: "#1B2A4A",   // Same as sidebar
+        bgcolor: "#1E293B",   // Same as sidebar
         color: "#fff",
         borderBottom: "1px solid rgba(255,255,255,0.08)"
       }}
