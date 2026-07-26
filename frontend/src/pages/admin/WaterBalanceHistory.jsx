@@ -24,6 +24,9 @@ import {
   Avatar,
   Stack,
   InputAdornment,
+  Alert,
+  AlertTitle,
+  Button,
 } from "@mui/material";
 
 import HistoryIcon from "@mui/icons-material/History";
@@ -33,6 +36,7 @@ import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import PlaceIcon from "@mui/icons-material/Place";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
 const NAVY = "#1E293B"; // matches sidebar
 const NAVY_SOFT = "#1E293B14";
@@ -43,6 +47,8 @@ export default function WaterBalanceHistory() {
   const [search, setSearch] = useState("");
   const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState("");
+  const [staleLocations, setStaleLocations] = useState([]);
+  const [retraining, setRetraining] = useState(false);
 
   // Load list of locations once, on page load
   useEffect(() => {
@@ -58,6 +64,11 @@ export default function WaterBalanceHistory() {
       }
     };
     loadLocations();
+  }, []);
+
+  // Check for stale (needs-retrain) models once, on page load
+  useEffect(() => {
+    loadStaleLocations();
   }, []);
 
   // Reload history whenever the selected location changes
@@ -82,6 +93,28 @@ export default function WaterBalanceHistory() {
     }
   };
 
+  const loadStaleLocations = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/ml/stale-locations/`);
+      setStaleLocations(res.data.stale_locations || []);
+    } catch (err) {
+      console.error("Stale locations check failed:", err);
+    }
+  };
+
+  const handleRetrainAll = async () => {
+    try {
+      setRetraining(true);
+      const res = await axios.post(`${API_BASE}/ml/retrain-all-stale/`);
+      alert(res.data.message);
+      loadStaleLocations(); // refresh the banner after retraining
+    } catch (err) {
+      alert(err.response?.data?.message || "Retrain failed.");
+    } finally {
+      setRetraining(false);
+    }
+  };
+
   const filteredHistory = history.filter((item) =>
     `${item.date} ${item.time}`
       .toLowerCase()
@@ -101,7 +134,40 @@ export default function WaterBalanceHistory() {
         }}
       >
 
-        
+        {/* ============================================================
+            STALE MODEL BANNER (only renders when something is stale)
+        ============================================================ */}
+
+        {staleLocations.length > 0 && (
+          <Alert
+            severity="warning"
+            icon={<WarningAmberIcon fontSize="inherit" />}
+            sx={{
+              mb: 3,
+              borderRadius: 2.5,
+              alignItems: "center",
+              "& .MuiAlert-message": { width: "100%" },
+            }}
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                variant="outlined"
+                onClick={handleRetrainAll}
+                disabled={retraining}
+                sx={{ textTransform: "none", fontWeight: 600, whiteSpace: "nowrap" }}
+              >
+                {retraining ? "Retraining..." : "Retrain All"}
+              </Button>
+            }
+          >
+            <AlertTitle sx={{ fontWeight: 700 }}>
+              {staleLocations.length} location{staleLocations.length > 1 ? "s" : ""} need model retraining
+            </AlertTitle>
+            {staleLocations.map((loc) => loc.location_name).join(", ")} — forecasts for{" "}
+            {staleLocations.length > 1 ? "these locations" : "this location"} may be unavailable until retrained.
+          </Alert>
+        )}
 
         {/* ============================================================
             WATER BALANCE ENTRY
@@ -121,24 +187,7 @@ export default function WaterBalanceHistory() {
           
 
           <Box sx={{ mb: 1 }}>
-            <WaterBalanceCard
-              initialValues={{
-                Rr: 120,
-                Re: 30,
-                Ri: 15,
-                I: 5,
-                Si: 8,
-                Se: 10,
-                O: 12,
-                Et: 60,
-                Dp: 55,
-              }}
-              unit="MCM"
-              onChange={() => {
-                // e.g. save to backend
-                // saveWaterBalance(values, deltaS);
-              }}
-            />
+            <WaterBalanceCard unit="MCM" />
           </Box>
         </Box>
 
@@ -436,7 +485,7 @@ export default function WaterBalanceHistory() {
                       </TableCell>
 
                       <TableCell>
-                        {item.date}
+                        {item.time}
                       </TableCell>
 
                       <TableCell sx={{ color: "text.secondary" }}>

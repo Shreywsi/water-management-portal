@@ -13,9 +13,75 @@ import django
 django.setup()
 
 from tensorflow.keras.models import load_model
-from groundwater.models import WaterBalance, WaterLevel
+from groundwater.models import WaterBalance, WaterLevel, Parameter, MLModelState
 
 BASE_DIR = Path(__file__).resolve().parent
+_MODEL_CACHE = {}
+
+
+class StaleModelError(Exception):
+    """Raised when a trained model's config no longer matches the
+    current Parameter registry (e.g. parameters were added/removed
+    since this model was trained). Callers should catch this and
+    tell the user to retrain, rather than let a KeyError/shape
+    mismatch surface from deep inside pandas or Keras."""
+    pass
+
+
+def _check_not_stale(location_id, config):
+    """Raises StaleModelError unless we can positively confirm this
+    location's model matches the current Parameter registry. Missing
+    tracking data (no MLModelState row, or a config predating the
+    parameter_signature field) is treated as unverifiable -> stale,
+    not as "assume it's fine". This runs on every prediction call
+    (not just on cache load) so a parameter change made after a
+    model was cached in memory is still caught immediately."""
+    from ml.train import _parameter_signature
+
+    model_state = MLModelState.objects.filter(location_id=location_id).first()
+
+    if model_state is None:
+        raise StaleModelError(
+            f"No training record found for location {location_id}. Please retrain."
+        )
+
+    if model_state.needs_retrain:
+        raise StaleModelError(
+            f"Model for location {location_id} is out of date "
+            f"(parameters changed since last training). Please retrain."
+        )
+
+    trained_signature = config.get("parameter_signature")
+    if not trained_signature:
+        raise StaleModelError(
+            f"Model for location {location_id} predates parameter tracking. Please retrain."
+        )
+
+    if trained_signature != _parameter_signature(config.get("parameter_keys", [])):
+        raise StaleModelError(
+            f"Model config for location {location_id} appears corrupted. Please retrain."
+        )
+
+
+def _load_cached_artifacts(location_id, model_path, scaler_path, config_path):
+    current_mtime = model_path.stat().st_mtime
+    cached = _MODEL_CACHE.get(location_id)
+
+    if cached is not None and cached["mtime"] == current_mtime:
+        return cached["model"], cached["scaler"], cached["config"]
+
+    model = load_model(model_path)
+    scaler = joblib.load(scaler_path)
+    with open(config_path) as f:
+        config = json.load(f)
+
+    _MODEL_CACHE[location_id] = {
+        "model": model,
+        "scaler": scaler,
+        "config": config,
+        "mtime": current_mtime,
+    }
+    return model, scaler, config
 
 
 def predict_water_balance(location_id, steps=1):
@@ -34,11 +100,13 @@ def predict_water_balance(location_id, steps=1):
     if not CONFIG_PATH.exists():
         raise Exception("model_config.json not found.")
 
-    model = load_model(MODEL_PATH)
-    scaler = joblib.load(SCALER_PATH)
+    model, scaler, config = _load_cached_artifacts(
+        location_id, MODEL_PATH, SCALER_PATH, CONFIG_PATH
+    )
 
-    with open(CONFIG_PATH) as f:
-        config = json.load(f)
+    # Checked on every call (cache hit or miss) so a parameter change
+    # made after this model was cached in memory is still caught.
+    _check_not_stale(location_id, config)
 
     features = config["features"]
     sequence_length = config["sequence_length"]
@@ -47,10 +115,8 @@ def predict_water_balance(location_id, steps=1):
     # Use exactly the parameter set this MODEL was trained on - not
     # whatever parameters are active right now. If new parameters
     # were added since training, this model is stale
-    # (MLModelState.needs_retrain will be True); the caller is
-    # responsible for checking that before relying on this
-    # prediction, since predicting with a mismatched feature set
-    # would silently give the wrong answer, not fail loudly.
+    # (MLModelState.needs_retrain will be True); _check_not_stale
+    # above already guards against that before we get here.
     parameter_keys = config.get("parameter_keys", [])
 
     records = (
@@ -101,7 +167,11 @@ def predict_water_balance(location_id, steps=1):
 
     for _ in range(steps):
         X = np.array([sequence])
-        prediction_scaled = model.predict(X, verbose=0)[0][0]
+        # model(X, training=False) is equivalent to model.predict(X) for
+        # inference, but skips the tf.data pipeline overhead that
+        # .predict() adds on every call - much faster for single-sequence
+        # predictions like this.
+        prediction_scaled = model(X, training=False).numpy()[0][0]
 
         next_row = sequence[-1].copy()
         next_row[target_index] = prediction_scaled

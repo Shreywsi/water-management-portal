@@ -3,6 +3,12 @@
 import os
 import sys
 
+import django.core.servers.basehttp as basehttp
+
+def address_string(self):
+    return self.client_address[0]
+
+basehttp.WSGIRequestHandler.address_string = address_string
 
 def main():
     """Run administrative tasks."""

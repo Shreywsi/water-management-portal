@@ -91,7 +91,7 @@ def retrain_lstm(request):
 
 @api_view(["GET"])
 def ai_dashboard(request):
-    from ml.predict import predict_water_balance
+    from ml.predict import predict_water_balance, StaleModelError
 
     location_id = request.GET.get("location")
 
@@ -132,10 +132,16 @@ def ai_dashboard(request):
     )
 
     prediction = None
+    needs_retrain = False
+    stale_message = None
 
     if model_ready:
         try:
             prediction = predict_water_balance(int(location_id))
+        except StaleModelError as e:
+            prediction = None
+            needs_retrain = True
+            stale_message = str(e)
         except Exception:
             prediction = None
 
@@ -194,13 +200,15 @@ def ai_dashboard(request):
             "r2": r2,
             "train_samples": train_samples,
             "test_samples": test_samples,
+            "needs_retrain": needs_retrain,
+            "stale_message": stale_message,
         }
     })
 
 
 @api_view(["GET"])
 def forecast_api(request, period):
-    from ml.predict import predict_water_balance
+    from ml.predict import predict_water_balance, StaleModelError
     periods = {
         "monthly": 1,
         "quarterly": 3,
@@ -276,6 +284,17 @@ def forecast_api(request, period):
         )
 
         prediction = forecast[-1]
+    except StaleModelError as e:
+        logger.warning("Stale model for location %s: %s", location.id, e)
+
+        return Response(
+            {
+                "success": False,
+                "message": str(e),
+                "needs_retrain": True,
+            },
+            status=409
+        )
     except Exception as e:
         logger.exception("Prediction failed")
 
@@ -385,4 +404,117 @@ def forecast_api(request, period):
         "period": period,
         "steps": steps,
         **result
+    })
+
+@api_view(["GET"])
+def stale_locations(request):
+    """Returns every location that predict_water_balance would refuse
+    to serve a prediction for - i.e. flagged needs_retrain=True, OR
+    missing an MLModelState row entirely, OR missing a
+    parameter_signature in its model_config.json. Mirrors the exact
+    checks in ml/predict.py's _check_not_stale so this list can never
+    disagree with what prediction actually blocks on."""
+    import json
+    from pathlib import Path
+    from django.conf import settings
+    from ..models import MLModelState, Location
+
+    stale = []
+
+    for location in Location.objects.all():
+        state = MLModelState.objects.filter(location_id=location.id).first()
+
+        config_path = (
+            Path(settings.BASE_DIR) / "ml" / "saved_models"
+            / f"location_{location.id}" / "model_config.json"
+        )
+
+        model_exists = config_path.exists()
+
+        if not model_exists:
+            # No model trained yet at all - not "stale", just not ready.
+            # Don't include in the retrain list (nothing to retrain);
+            # ai_dashboard's model_ready flag already communicates this.
+            continue
+
+        is_stale = False
+        reason = None
+
+        if state is None:
+            is_stale = True
+            reason = "No training record found."
+        elif state.needs_retrain:
+            is_stale = True
+            reason = "Parameters changed since last training."
+        else:
+            try:
+                with open(config_path) as f:
+                    config = json.load(f)
+                if not config.get("parameter_signature"):
+                    is_stale = True
+                    reason = "Model predates parameter tracking."
+            except Exception:
+                is_stale = True
+                reason = "Model config could not be read."
+
+        if is_stale:
+            stale.append({
+                "location_id": location.id,
+                "location_name": location.name,
+                "last_retrained_at": state.last_retrained_at if state else None,
+                "reason": reason,
+            })
+
+    return Response({"stale_locations": stale, "count": len(stale)})
+
+
+@api_view(["POST"])
+def retrain_all_stale(request):
+    from ml.dataset_export import export_location_dataset
+    from ml.retrain import retrain_model
+    from ..models import MLModelState, Location
+    import json
+    from pathlib import Path
+    from django.conf import settings
+
+    # Reuse the exact same "is this stale" definition as stale_locations,
+    # so retrain-all can never miss something the banner shows (or vice versa).
+    stale_ids = []
+    for location in Location.objects.all():
+        state = MLModelState.objects.filter(location_id=location.id).first()
+        config_path = (
+            Path(settings.BASE_DIR) / "ml" / "saved_models"
+            / f"location_{location.id}" / "model_config.json"
+        )
+        if not config_path.exists():
+            continue
+        if state is None or state.needs_retrain:
+            stale_ids.append(location.id)
+            continue
+        try:
+            with open(config_path) as f:
+                config = json.load(f)
+            if not config.get("parameter_signature"):
+                stale_ids.append(location.id)
+        except Exception:
+            stale_ids.append(location.id)
+
+    results = []
+    for location_id in stale_ids:
+        rows = export_location_dataset(location_id)
+        if rows < 8:
+            results.append({
+                "location_id": location_id,
+                "success": False,
+                "message": f"Need at least 8 records. Only {rows} available.",
+            })
+            continue
+        result = retrain_model(location_id)
+        results.append({"location_id": location_id, **result})
+
+    succeeded = sum(1 for r in results if r.get("success"))
+    return Response({
+        "success": True,
+        "message": f"Retrained {succeeded} of {len(stale_ids)} stale location(s).",
+        "results": results,
     })

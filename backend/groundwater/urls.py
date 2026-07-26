@@ -39,6 +39,8 @@ from .views import (
     resource_file_detail,
     parameter_list,       
     parameter_delete,
+    stale_locations,
+    retrain_all_stale,
     
 
 )
@@ -92,4 +94,6 @@ path(
     path("resources/files/<int:file_id>/", resource_file_detail),
     path("parameters/", parameter_list),
     path("parameters/<int:id>/", parameter_delete),
+    path("ml/stale-locations/", stale_locations),
+    path("ml/retrain-all-stale/", retrain_all_stale),
 ]
