@@ -208,17 +208,9 @@ class WaterBalance(models.Model):
         null=True,
         blank=True,
     )
+    entry_date = models.DateField()
 
-    Rr = models.FloatField(default=0)
-    Re = models.FloatField(default=0)
-    Ri = models.FloatField(default=0)
-    I = models.FloatField(default=0)
-    Si = models.FloatField(default=0)
-
-    Se = models.FloatField(default=0)
-    O = models.FloatField(default=0)
-    Et = models.FloatField(default=0)
-    Dp = models.FloatField(default=0)
+    values = models.JSONField(default=dict, blank=True)
 
     delta_s = models.FloatField()
 
@@ -321,3 +313,33 @@ class ResourceFile(models.Model):
 
     def __str__(self):
         return self.filename
+    
+class Parameter(models.Model):
+    CATEGORY_CHOICES = [
+        ("inflow", "Inflow"),
+        ("outflow", "Outflow"),
+    ]
+
+    key = models.SlugField(max_length=50, unique=True)
+    label = models.CharField(max_length=255)
+    category = models.CharField(max_length=10, choices=CATEGORY_CHOICES)
+    is_active = models.BooleanField(default=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["category", "order", "id"]
+
+    def __str__(self):
+        return f"{self.key} ({self.category})"
+    
+class MLModelState(models.Model):
+    location = models.OneToOneField(
+        "Location", on_delete=models.CASCADE, related_name="ml_state"
+    )
+    needs_retrain = models.BooleanField(default=True)
+    last_retrained_at = models.DateTimeField(null=True, blank=True)
+    active_parameter_signature = models.CharField(max_length=64, blank=True, default="")
+
+    def __str__(self):
+        return f"MLModelState({self.location_id}, needs_retrain={self.needs_retrain})"

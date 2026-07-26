@@ -4,23 +4,20 @@ import API_BASE from "../config/api";
 import {
   Box,
   Card,
-  Switch,
-  FormControlLabel,
   Typography,
   Button,
+  IconButton,
   Collapse,
   Table,
   TableBody,
   TableCell,
   TableContainer,
-  TableHead,
   TableRow,
   TextField,
   Stack,
   Divider,
   Chip,
   Grid,
-  InputAdornment,
   FormControl,
   InputLabel,
   Select,
@@ -30,79 +27,53 @@ import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import ArrowDownwardRoundedIcon from "@mui/icons-material/ArrowDownwardRounded";
 import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
 import WaterDropRoundedIcon from "@mui/icons-material/WaterDropRounded";
+import AddCircleOutlineRoundedIcon from "@mui/icons-material/AddCircleOutlineRounded";
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 
 /*
- * Water Balance Equation:
- *   Rr + Re + Ri + I + Si  =  Se + O + Et + Dp + ΔS
- *   (Inflow terms)             (Outflow terms)   (Change in storage)
+ * Water Balance Equation (dynamic parameter set):
+ *   sum(inflow parameters) - sum(outflow parameters) = ΔS
  *
- * => ΔS = (Rr + Re + Ri + I + Si) - (Se + O + Et + Dp)
- *
- * ΔS > 0  → storage is increasing (net recharge)
- * ΔS < 0  → storage is decreasing (net depletion)
+ * Parameters are fetched from the backend (Parameter table) and can
+ * be added/removed live from this screen - nothing is hardcoded here.
+ * Each entry is also tagged with a date representing the period the
+ * values are about (entry_date), separate from when it was saved.
  */
 
-// ---- Design tokens -------------------------------------------------------
-// A hydrology-appropriate palette: teal for water gained (recharge),
-// a dry terracotta/rust for water lost (depletion), and a warm neutral
-// canvas rather than a generic grey, since this sits on top of field data.
 const PALETTE = {
   ink: "#1D2A2B",
   inkMuted: "#5B6B6C",
   canvas: "#F6F4EE",
   border: "#E4E0D3",
-  recharge: "#0E6E76", // teal — inflow / net gain
+  recharge: "#0E6E76",
   rechargeSoft: "rgba(14, 110, 118, 0.08)",
-  depletion: "#B24A28", // rust — outflow / net loss
+  depletion: "#B24A28",
   depletionSoft: "rgba(178, 74, 40, 0.08)"
 };
 
 const NUMERIC_FONT =
   '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
 
-// Definitions for each term — used for labels + tooltips in the table
-const INFLOW_FIELDS = [
-  { key: "Rr", label: "Recharge from rainfall" },
-  { key: "Re", label: "Recharge from canal seepage" },
-  { key: "Ri", label: "Recharge from return flow of applied irrigation" },
-  { key: "I", label: "Inflow from outside the basin" },
-  { key: "Si", label: "Recharge from seepage (rivers, streams, reservoirs, ponds)" }
-];
-
-const OUTFLOW_FIELDS = [
-  { key: "Se", label: "Groundwater flow from effluent seepage" },
-  { key: "O", label: "Outflow to areas outside the basin" },
-  { key: "Et", label: "Evapo-transpiration losses" },
-  { key: "Dp", label: "Groundwater draft (pumpage)" }
-];
-
-const DEFAULT_VALUES = {
-  Rr: 0,
-  Re: 0,
-  Ri: 0,
-  I: 0,
-  Si: 0,
-  Se: 0,
-  O: 0,
-  Et: 0,
-  Dp: 0
-};
-
-// Small helper: format numbers with 2 decimals, no trailing junk
 const fmt = (n) => {
   if (Number.isNaN(n)) return "0.00";
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-function computeTotals(v) {
-  const inflow = INFLOW_FIELDS.reduce((sum, f) => sum + (Number(v[f.key]) || 0), 0);
-  const outflow = OUTFLOW_FIELDS.reduce((sum, f) => sum + (Number(v[f.key]) || 0), 0);
+const todayISO = () => new Date().toISOString().slice(0, 10);
+
+function computeTotals(parameters, values) {
+  let inflow = 0;
+  let outflow = 0;
+
+  for (const p of parameters) {
+    const v = Number(values[p.key]) || 0;
+    if (p.category === "inflow") inflow += v;
+    else if (p.category === "outflow") outflow += v;
+  }
+
   return { inflow, outflow, deltaS: inflow - outflow };
 }
 
-// Signature element: a horizontal gauge that shows inflow and outflow as
-// proportional bars meeting at a center line, so the balance (or imbalance)
-// is legible at a glance before anyone reads a single number.
 function BalanceGauge({ inflow, outflow }) {
   const max = Math.max(inflow, outflow, 1);
   const inflowPct = (inflow / max) * 100;
@@ -110,31 +81,11 @@ function BalanceGauge({ inflow, outflow }) {
 
   return (
     <Box sx={{ width: "100%" }}>
-      <Stack
-        direction="row"
-        spacing={2} // increase to 3 or 4 if you want more space
-        sx={{ mb: 0.5 }}
-      >
-        <Typography
-          variant="caption"
-          sx={{
-            color: PALETTE.recharge,
-            fontWeight: 700,
-            letterSpacing: 0.4
-          }}
-        >
+      <Stack direction="row" spacing={2} sx={{ mb: 0.5 }}>
+        <Typography variant="caption" sx={{ color: PALETTE.recharge, fontWeight: 700, letterSpacing: 0.4 }}>
           INFLOW
         </Typography>
-
-        <Typography
-          variant="caption"
-          sx={{
-            ml: 2, // 16px gap
-            color: PALETTE.depletion,
-            fontWeight: 700,
-            letterSpacing: 0.4
-          }}
-        >
+        <Typography variant="caption" sx={{ ml: 2, color: PALETTE.depletion, fontWeight: 700, letterSpacing: 0.4 }}>
           OUTFLOW
         </Typography>
       </Stack>
@@ -170,16 +121,39 @@ function BalanceGauge({ inflow, outflow }) {
   );
 }
 
-function ComponentTable({ title, icon, fields, values, onFieldChange, accent, accentSoft, total }) {
+function ComponentTable({
+  title,
+  icon,
+  category,
+  parameters,
+  values,
+  onFieldChange,
+  onDeleteParameter,
+  onAddParameter,
+  accent,
+  accentSoft,
+  total,
+}) {
+  const [addingOpen, setAddingOpen] = useState(false);
+  const [newLabel, setNewLabel] = useState("");
+  const [newKey, setNewKey] = useState("");
+
+  const fields = parameters.filter((p) => p.category === category);
+
+  const submitAdd = () => {
+    if (!newLabel.trim()) return;
+    const key = (newKey.trim() || newLabel.trim())
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    onAddParameter({ key, label: newLabel.trim(), category });
+    setNewLabel("");
+    setNewKey("");
+    setAddingOpen(false);
+  };
+
   return (
-    <Box
-      sx={{
-        border: `1px solid ${PALETTE.border}`,
-        borderRadius: 2.5,
-        overflow: "hidden",
-        height: "100%"
-      }}
-    >
+    <Box sx={{ border: `1px solid ${PALETTE.border}`, borderRadius: 2.5, overflow: "hidden", height: "100%" }}>
       <Stack
         direction="row"
         alignItems="center"
@@ -209,7 +183,7 @@ function ComponentTable({ title, icon, fields, values, onFieldChange, accent, ac
         <Table size="small">
           <TableBody>
             {fields.map((f) => (
-              <TableRow key={f.key} sx={{ "&:last-of-type td": { borderBottom: 0 } }}>
+              <TableRow key={f.key} sx={{ "&:last-of-type td": { borderBottom: addingOpen ? undefined : 0 } }}>
                 <TableCell sx={{ color: PALETTE.inkMuted, fontSize: 13.5, py: 1 }}>
                   <Box component="span" sx={{ fontFamily: NUMERIC_FONT, fontWeight: 700, color: PALETTE.ink, mr: 0.75 }}>
                     {f.key}
@@ -221,23 +195,81 @@ function ComponentTable({ title, icon, fields, values, onFieldChange, accent, ac
                     size="small"
                     type="number"
                     variant="outlined"
-                    value={values[f.key]}
+                    value={values[f.key] ?? ""}
                     onChange={(e) => onFieldChange(f.key, e.target.value)}
                     inputProps={{
                       style: { textAlign: "right", fontFamily: NUMERIC_FONT, fontSize: 13.5 },
                       step: "any"
                     }}
-                    sx={{
-                      width: 116,
-                      "& .MuiOutlinedInput-root": { borderRadius: 1.5 }
-                    }}
+                    sx={{ width: 116, "& .MuiOutlinedInput-root": { borderRadius: 1.5 } }}
                   />
+                </TableCell>
+                <TableCell align="center" sx={{ py: 0.75, width: 40, pl: 0 }}>
+                  <IconButton
+                    size="small"
+                    onClick={() => onDeleteParameter(f)}
+                    sx={{ color: PALETTE.inkMuted, "&:hover": { color: PALETTE.depletion } }}
+                  >
+                    <DeleteOutlineRoundedIcon fontSize="small" />
+                  </IconButton>
                 </TableCell>
               </TableRow>
             ))}
+
+            {fields.length === 0 && !addingOpen && (
+              <TableRow>
+                <TableCell colSpan={3} sx={{ color: PALETTE.inkMuted, fontSize: 13, py: 1.5, fontStyle: "italic" }}>
+                  No parameters yet — add one below.
+                </TableCell>
+              </TableRow>
+            )}
+
+            {addingOpen && (
+              <TableRow>
+                <TableCell colSpan={3} sx={{ py: 1.25 }}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <TextField
+                      size="small"
+                      label="Label"
+                      placeholder="e.g. Recharge from tank overflow"
+                      value={newLabel}
+                      onChange={(e) => setNewLabel(e.target.value)}
+                      sx={{ flex: 1 }}
+                    />
+                    <TextField
+                      size="small"
+                      label="Key (optional)"
+                      placeholder="auto from label"
+                      value={newKey}
+                      onChange={(e) => setNewKey(e.target.value)}
+                      sx={{ width: 140 }}
+                    />
+                    <Button size="small" variant="contained" onClick={submitAdd} sx={{ bgcolor: accent, "&:hover": { bgcolor: accent } }}>
+                      Add
+                    </Button>
+                    <Button size="small" onClick={() => setAddingOpen(false)}>
+                      Cancel
+                    </Button>
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </TableContainer>
+
+      {!addingOpen && (
+        <Box sx={{ px: 2, py: 1 }}>
+          <Button
+            size="small"
+            startIcon={<AddCircleOutlineRoundedIcon sx={{ fontSize: 16 }} />}
+            onClick={() => setAddingOpen(true)}
+            sx={{ textTransform: "none", fontWeight: 600, color: accent, px: 0, "&:hover": { bgcolor: "transparent" } }}
+          >
+            Add parameter
+          </Button>
+        </Box>
+      )}
 
       <Stack
         direction="row"
@@ -256,92 +288,115 @@ function ComponentTable({ title, icon, fields, values, onFieldChange, accent, ac
   );
 }
 
-export default function WaterBalanceCard({
-  initialValues = DEFAULT_VALUES,
-  unit = "MCM", // e.g. Million Cubic Meters — change to match your data's unit
-  onChange // optional callback(values, deltaS) if the parent wants to persist data
-}) {
-  const [values, setValues] = useState({ ...DEFAULT_VALUES, ...initialValues });
+export default function WaterBalanceCard({ unit = "MCM" }) {
+  const [parameters, setParameters] = useState([]); // [{id, key, label, category}]
+  const [values, setValues] = useState({}); // {key: number}
+  const [entryDate, setEntryDate] = useState(todayISO());
   const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [clusters, setClusters] = useState([]);
-
   const [selectedLocation, setSelectedLocation] = useState("");
-  const totals = useMemo(() => computeTotals(values), [values]);
+  const [loadError, setLoadError] = useState("");
+
+  const totals = useMemo(() => computeTotals(parameters, values), [parameters, values]);
   const isSurplus = totals.deltaS >= 0;
   const accent = isSurplus ? PALETTE.recharge : PALETTE.depletion;
-  useEffect(() => {
-  console.log("WaterBalance mounted");
-  console.log("API_BASE =", API_BASE);
 
-  axios
-    .get(`${API_BASE}/location-list/`)
-    .then((res) => {
-      console.log("Location response:", res.data);
-      setClusters(res.data);
-    })
-    .catch((err) => {
-      console.error("Location error:", err);
-    });
-}, []);
+  const fetchParameters = () => {
+    axios
+      .get(`${API_BASE}/parameters/`)
+      .then((res) => {
+        setParameters(res.data);
+        // Ensure a values entry exists for every parameter, without
+        // clobbering anything the user has already typed.
+        setValues((prev) => {
+          const next = { ...prev };
+          for (const p of res.data) {
+            if (!(p.key in next)) next[p.key] = "";
+          }
+          return next;
+        });
+      })
+      .catch((err) => {
+        console.error("Parameter list error:", err);
+        setLoadError("Could not load parameters from the server.");
+      });
+  };
+
+  useEffect(() => {
+    axios
+      .get(`${API_BASE}/location-list/`)
+      .then((res) => setClusters(res.data))
+      .catch((err) => console.error("Location error:", err));
+
+    fetchParameters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleFieldChange = (key, raw) => {
-    // Allow empty string while typing, otherwise parse as float
-    const next = { ...values, [key]: raw === "" ? "" : Number(raw) };
-    setValues(next);
-    if (onChange) onChange(next, computeTotals(next).deltaS);
+    setValues((prev) => ({ ...prev, [key]: raw === "" ? "" : Number(raw) }));
+  };
+
+  const handleAddParameter = async ({ key, label, category }) => {
+    try {
+      await axios.post(`${API_BASE}/parameters/`, { key, label, category });
+      fetchParameters();
+    } catch (err) {
+      alert(err.response?.data?.error || "Could not add parameter.");
+    }
+  };
+
+  const handleDeleteParameter = async (param) => {
+    if (!window.confirm(`Delete parameter "${param.label}"? Past records keep their saved values.`)) return;
+    try {
+      await axios.delete(`${API_BASE}/parameters/${param.id}/`);
+      setValues((prev) => {
+        const next = { ...prev };
+        delete next[param.key];
+        return next;
+      });
+      fetchParameters();
+    } catch (err) {
+      alert(err.response?.data?.error || "Could not delete parameter.");
+    }
   };
 
   const saveWaterBalance = async () => {
     if (!selectedLocation) {
-  alert("Please select a village/cluster.");
-  return;
-}
+      alert("Please select a village/cluster.");
+      return;
+    }
+    if (!entryDate) {
+      alert("Please select a date.");
+      return;
+    }
+
+    // Only send parameters that currently exist, coerced to numbers
+    // (blank -> 0), so the payload always matches active parameters.
+    const payloadValues = {};
+    for (const p of parameters) {
+      payloadValues[p.key] = Number(values[p.key]) || 0;
+    }
+
     try {
       setSaving(true);
-
-      const response = await axios.post(
-  `${API_BASE}/water-balance/add/`,
-  {
-    ...values,
-    location: selectedLocation,
-  }
-);
-
-      alert(`Water Balance Saved\nΔS = ${response.data.delta_s}`);
+      const response = await axios.post(`${API_BASE}/water-balance/add/`, {
+        location: selectedLocation,
+        date: entryDate,
+        values: payloadValues,
+      });
+      alert(`Water Balance Saved (${response.data.date})\nΔS = ${response.data.delta_s}`);
     } catch (err) {
-  console.error(err);
-
-  console.log(err.response);
-  console.log(err.response?.data);
-
-  alert(
-    err.response?.data?.error ||
-    JSON.stringify(err.response?.data) ||
-    err.message
-  );
-} finally {
+      console.error(err);
+      alert(err.response?.data?.error || JSON.stringify(err.response?.data) || err.message);
+    } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Card
-      elevation={0}
-      sx={{
-        p: { xs: 2.5, sm: 3.5 },
-        borderRadius: 3,
-        border: `1px solid ${PALETTE.border}`,
-        bgcolor: "#FFFFFF"
-      }}
-    >
-      {/* Header row: title + the headline balance value */}
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        justifyContent="space-between"
-        alignItems="flex-start"
-        spacing={2.5}
-      >
+    <Card elevation={0} sx={{ p: { xs: 2.5, sm: 3.5 }, borderRadius: 3, border: `1px solid ${PALETTE.border}`, bgcolor: "#FFFFFF" }}>
+      <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems="flex-start" spacing={2.5}>
         <Stack direction="row" alignItems="center" spacing={1}>
           <WaterDropRoundedIcon sx={{ color: PALETTE.recharge, fontSize: 20 }} />
           <Typography variant="h6" sx={{ fontWeight: 700, color: PALETTE.ink }}>
@@ -351,10 +406,7 @@ export default function WaterBalanceCard({
 
         <Box sx={{ minWidth: { xs: "100%", md: 220 } }}>
           <Stack direction="row" spacing={1.25} alignItems="baseline" justifyContent={{ xs: "flex-start", md: "flex-end" }}>
-            <Typography
-              variant="h3"
-              sx={{ fontFamily: NUMERIC_FONT, fontWeight: 700, color: accent, lineHeight: 1 }}
-            >
+            <Typography variant="h3" sx={{ fontFamily: NUMERIC_FONT, fontWeight: 700, color: accent, lineHeight: 1 }}>
               {isSurplus ? "+" : ""}
               {fmt(totals.deltaS)}
             </Typography>
@@ -373,54 +425,60 @@ export default function WaterBalanceCard({
                 )
               }
               label={isSurplus ? "Net recharge" : "Net depletion"}
-              sx={{
-                bgcolor: isSurplus ? PALETTE.rechargeSoft : PALETTE.depletionSoft,
-                color: accent,
-                fontWeight: 700,
-                fontSize: 12
-              }}
+              sx={{ bgcolor: isSurplus ? PALETTE.rechargeSoft : PALETTE.depletionSoft, color: accent, fontWeight: 700, fontSize: 12 }}
             />
           </Stack>
           <BalanceGauge inflow={totals.inflow} outflow={totals.outflow} />
         </Box>
       </Stack>
-      <Box sx={{ mt: 3, mb: 2 }}>
-  <FormControl fullWidth>
-    <InputLabel>Location</InputLabel>
-    <Select
-      value={selectedLocation}
-      label="Location"
-      onChange={(e) => setSelectedLocation(e.target.value)}
-    >
-      {clusters.map((cluster) => (
-        <MenuItem
-          key={cluster.id}
-          value={cluster.id}
-        >
-          {cluster.name}
-        </MenuItem>
-      ))}
-    </Select>
-  </FormControl>
-</Box>
-      <Box sx={{ mt: 2.5 }}>
+
+      {/* Location + Date row - CSS Grid with minmax so Location always
+          keeps a guaranteed share of the row and can never get squeezed
+          down by the Date field next to it. */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", sm: "minmax(0, 2fr) minmax(160px, 1fr)" },
+          gap: 2,
+          mt: 1,
+          mb: 2,
+        }}
+      >
+        <FormControl fullWidth sx={{ minWidth: 0 }}>
+          <InputLabel>Location</InputLabel>
+          <Select value={selectedLocation} label="Location" onChange={(e) => setSelectedLocation(e.target.value)}>
+            {clusters.map((cluster) => (
+              <MenuItem key={cluster.id} value={cluster.id} sx={{ whiteSpace: "normal" }}>
+                {cluster.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <TextField
+          fullWidth
+          label="Date"
+          type="date"
+          value={entryDate}
+          onChange={(e) => setEntryDate(e.target.value)}
+          InputLabelProps={{ shrink: true }}
+          inputProps={{ max: todayISO() }}
+          helperText="Which period these values are about"
+        />
+      </Box>
+
+      {loadError && (
+        <Typography variant="caption" sx={{ color: PALETTE.depletion }}>
+          {loadError}
+        </Typography>
+      )}
+
+      <Box sx={{ mt: 1 }}>
         <Button
           size="small"
           onClick={() => setExpanded((e) => !e)}
-          endIcon={
-            <ExpandMoreRoundedIcon
-              sx={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 200ms ease" }}
-            />
-          }
-          sx={{
-            textTransform: "none",
-            fontWeight: 600,
-            color: PALETTE.ink,
-            px: 0,
-            "&:hover": { bgcolor: "transparent", color: PALETTE.recharge }
-          }}
+          endIcon={<ExpandMoreRoundedIcon sx={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 200ms ease" }} />}
+          sx={{ textTransform: "none", fontWeight: 600, color: PALETTE.ink, px: 0, "&:hover": { bgcolor: "transparent", color: PALETTE.recharge } }}
         >
-          
           {expanded ? "Hide component breakdown" : "See component breakdown"}
         </Button>
       </Box>
@@ -433,9 +491,12 @@ export default function WaterBalanceCard({
             <ComponentTable
               title="Inflow components"
               icon={<ArrowDownwardRoundedIcon sx={{ fontSize: 15 }} />}
-              fields={INFLOW_FIELDS}
+              category="inflow"
+              parameters={parameters}
               values={values}
               onFieldChange={handleFieldChange}
+              onDeleteParameter={handleDeleteParameter}
+              onAddParameter={handleAddParameter}
               accent={PALETTE.recharge}
               accentSoft={PALETTE.rechargeSoft}
               total={totals.inflow}
@@ -445,9 +506,12 @@ export default function WaterBalanceCard({
             <ComponentTable
               title="Outflow components"
               icon={<ArrowUpwardRoundedIcon sx={{ fontSize: 15 }} />}
-              fields={OUTFLOW_FIELDS}
+              category="outflow"
+              parameters={parameters}
               values={values}
               onFieldChange={handleFieldChange}
+              onDeleteParameter={handleDeleteParameter}
+              onAddParameter={handleAddParameter}
               accent={PALETTE.depletion}
               accentSoft={PALETTE.depletionSoft}
               total={totals.outflow}
@@ -455,10 +519,6 @@ export default function WaterBalanceCard({
           </Grid>
         </Grid>
 
-        {/* Save button */}
-        
-          
-        {/* Summary line */}
         <Box
           sx={{
             mt: 2.5,
@@ -478,25 +538,21 @@ export default function WaterBalanceCard({
             {isSurplus ? "Groundwater storage is increasing" : "Groundwater storage is decreasing"}
           </Typography>
         </Box>
+
         <Stack direction="row" justifyContent="flex-end" sx={{ mt: 3 }}>
-  <Button
-    variant="contained"
-    onClick={saveWaterBalance}
-    disabled={saving}
-    sx={{
-      bgcolor: "#1E293B",
-      "&:hover": {
-        bgcolor: "#0F172A",
-      },
-      "&:disabled": {
-        bgcolor: "#94A3B8",
-        color: "#FFFFFF",
-      },
-    }}
-  >
-    {saving ? "Saving..." : "Save Water Balance"}
-  </Button>
-</Stack>
+          <Button
+            variant="contained"
+            onClick={saveWaterBalance}
+            disabled={saving}
+            sx={{
+              bgcolor: "#1E293B",
+              "&:hover": { bgcolor: "#0F172A" },
+              "&:disabled": { bgcolor: "#94A3B8", color: "#FFFFFF" },
+            }}
+          >
+            {saving ? "Saving..." : "Save Water Balance"}
+          </Button>
+        </Stack>
       </Collapse>
     </Card>
   );

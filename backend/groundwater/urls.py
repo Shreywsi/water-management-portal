@@ -37,6 +37,8 @@ from .views import (
     resource_folder_detail,
     resource_upload_files,
     resource_file_detail,
+    parameter_list,       
+    parameter_delete,
     
 
 )
@@ -88,4 +90,6 @@ path(
     path("resources/folders/<int:folder_id>/", resource_folder_detail),
     path("resources/folders/<int:folder_id>/upload/", resource_upload_files),
     path("resources/files/<int:file_id>/", resource_file_detail),
+    path("parameters/", parameter_list),
+    path("parameters/<int:id>/", parameter_delete),
 ]

@@ -24,9 +24,7 @@ import PlayCircleIcon from "@mui/icons-material/PlayCircle";
 
 import { apiFetch } from "../../utils/api";
 import WaterMap from "../../components/WaterMap";
-import config from "../../config/api";
 
-const { API_BASE } = config;
 
 const ACCENT = "#1E293B"; // navy, matches sidebar
 
@@ -76,7 +74,7 @@ export default function GISDataManager() {
       setGempyLoading(true);
       setGempyMessage("");
 
-      const response = await fetch(`${API_BASE}/run-gempy/`, {
+      const response = await apiFetch("/run-gempy/", {
         method: "POST",
       });
 
@@ -130,7 +128,7 @@ export default function GISDataManager() {
   };
 
   const runModflow = async () => {
-    const response = await fetch(`${API_BASE}/run-modflow/`, {
+    const response = await apiFetch("/run-modflow/", {
       method: "POST",
     });
 
@@ -323,7 +321,7 @@ export default function GISDataManager() {
                     "&:hover": { bgcolor: "#101A30" },
                   }}
                 >
-                  Open GIS Workspace
+                  Open QGIS Workspace
                 </Button>
 
                 <Button
