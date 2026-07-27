@@ -53,6 +53,10 @@ from .views import (
     add_tool_card_image,
     delete_tool_card_image,
     verify_admin_password,
+    list_gis_files,
+    download_gis_file,
+    delete_gis_file,
+    gis_geojson,
 )
 
 urlpatterns = [
@@ -117,4 +121,8 @@ path(
     path("tools/<int:id>/images/add/", add_tool_card_image),
     path("tools/images/<int:image_id>/delete/", delete_tool_card_image),
     path("verify-admin-password/", verify_admin_password),
+    path("gis/files/", list_gis_files),
+    path("gis/files/<int:id>/download/", download_gis_file),
+    path("gis/files/<int:id>/", delete_gis_file),
+    path("gis/geojson/", gis_geojson),
 ]

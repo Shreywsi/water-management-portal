@@ -2,7 +2,7 @@ import os
 import subprocess
 import zipfile
 from pathlib import Path
-
+import json
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.db import connection  
@@ -12,7 +12,11 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
 from groundwater.models import GisLayers
 import logging
+from django.http import FileResponse, Http404
 
+from django.contrib.gis.geos import GEOSGeometry
+from django.http import JsonResponse
+import random
 logger = logging.getLogger(__name__)
 
 
@@ -159,6 +163,10 @@ def upload_gis_file(request):
                 "layer_name": table_name.replace("_", " ").title(),
                 "geometry_type": "Unknown",
                 "visible": True,
+
+                "original_filename": uploaded_file.name,
+                "file_path": file_path,
+                "file_size": uploaded_file.size,
             },
         )
 
@@ -212,6 +220,129 @@ def list_gis_layers(request):
                 "geometry_column": geometry_column,
                 "geometry_type": layer.geometry_type,
                 "srid": srid,
+            })
+
+    return Response(layers)
+@api_view(["GET"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def list_gis_files(request):
+
+    files = []
+
+    for layer in GisLayers.objects.all().order_by("-uploaded_at"):
+
+        exists = (
+            layer.file_path
+            and os.path.exists(layer.file_path)
+        )
+
+        files.append({
+            "id": layer.id,
+            "layer_name": layer.layer_name,
+            "table_name": layer.table_name,
+
+            "original_filename": layer.original_filename,
+            "file_size": layer.file_size,
+            "uploaded_at": layer.uploaded_at,
+
+            "has_file": exists,
+        })
+
+    return Response(files)
+
+
+@api_view(["GET"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def download_gis_file(request, id):
+    try:
+        layer = GisLayers.objects.get(id=id)
+    except GisLayers.DoesNotExist:
+        raise Http404("Layer not found")
+
+    if not layer.file_path or not os.path.exists(layer.file_path):
+        raise Http404("File not found")
+
+    return FileResponse(
+        open(layer.file_path, "rb"),
+        as_attachment=True,
+        filename=layer.original_filename,
+    )
+
+@api_view(["DELETE"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def delete_gis_file(request, id):
+    try:
+        layer = GisLayers.objects.get(id=id)
+    except GisLayers.DoesNotExist:
+        return Response({"error": "Layer not found."}, status=404)
+
+    # Delete uploaded ZIP if it exists
+    if layer.file_path and os.path.exists(layer.file_path):
+        os.remove(layer.file_path)
+
+    # Delete imported PostGIS table
+    with connection.cursor() as cursor:
+        cursor.execute(f'DROP TABLE IF EXISTS "{layer.table_name}" CASCADE')
+
+    # Delete database record
+    layer.delete()
+
+    return Response({"success": True})
+
+@api_view(["GET"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def gis_geojson(request):
+
+    layers = []
+
+    with connection.cursor() as cursor:
+
+        for layer in GisLayers.objects.filter(visible=True):
+
+            geometry_column = "wkb_geometry"
+
+            cursor.execute("""
+                SELECT f_geometry_column
+                FROM geometry_columns
+                WHERE f_table_name=%s
+                LIMIT 1
+            """, [layer.table_name])
+
+            row = cursor.fetchone()
+
+            if row:
+                geometry_column = row[0]
+
+            cursor.execute(f"""
+                SELECT ST_AsGeoJSON({geometry_column})
+                FROM {layer.table_name}
+            """)
+
+            features = []
+
+            for geom, in cursor.fetchall():
+
+                if not geom:
+                    continue
+
+                features.append({
+                    "type": "Feature",
+                    "geometry": json.loads(geom),
+                    "properties": {}
+                })
+
+            layers.append({
+                "id": layer.id,
+                "name": layer.layer_name,
+                "color": "#{:06x}".format(random.randint(0,0xFFFFFF)),
+                "geojson": {
+                    "type":"FeatureCollection",
+                    "features":features
+                }
             })
 
     return Response(layers)

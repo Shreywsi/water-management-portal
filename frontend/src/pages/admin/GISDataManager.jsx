@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Container,
   Box,
@@ -9,10 +9,20 @@ import {
   Button,
   Stack,
   Divider,
-  Chip,
   Avatar,
   Alert,
   Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Chip,
 } from "@mui/material";
 
 import UploadFileIcon from "@mui/icons-material/UploadFile";
@@ -24,7 +34,9 @@ import PlayCircleIcon from "@mui/icons-material/PlayCircle";
 
 import { apiFetch } from "../../utils/api";
 import WaterMap from "../../components/WaterMap";
-
+import DownloadIcon from "@mui/icons-material/Download";
+import DeleteIcon from "@mui/icons-material/Delete";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 const ACCENT = "#1E293B"; // navy, matches sidebar
 
@@ -33,6 +45,7 @@ export default function GISDataManager() {
   const [mapRefreshKey, setMapRefreshKey] = useState(0);
   const [gempyLoading, setGempyLoading] = useState(false);
   const [gempyMessage, setGempyMessage] = useState("");
+  const [gisFiles, setGisFiles] = useState([]);
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -55,11 +68,12 @@ export default function GISDataManager() {
       console.log(data);
 
       if (response.ok) {
-        alert(`Uploaded: ${data.filename}`);
-        setMapRefreshKey((prev) => prev + 1);
-      } else {
-        alert(data.error || "Upload failed.");
-      }
+  alert(`Uploaded: ${data.filename}`);
+  setMapRefreshKey((prev) => prev + 1);
+  loadGISFiles();
+} else {
+  alert(data.error || "Upload failed.");
+}
     } catch (error) {
       console.error(error);
       alert("Upload failed.");
@@ -68,6 +82,83 @@ export default function GISDataManager() {
       event.target.value = "";
     }
   };
+  const loadGISFiles = async () => {
+    console.log("Loading GIS files...");
+    try {
+      const response = await apiFetch("/gis/files/");
+
+      if (!response.ok) return;
+
+      const data = await response.json();
+
+      console.log("Received:", data);
+      setGisFiles(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+  useEffect(() => {
+  loadGISFiles();
+}, []);
+
+useEffect(() => {
+  console.log("GIS Files state updated:", gisFiles);
+}, [gisFiles]);
+
+const downloadFile = async (id, filename) => {
+  try {
+    const response = await apiFetch(`/gis/files/${id}/download/`);
+
+    if (!response.ok) {
+      alert("Download failed.");
+      return;
+    }
+
+    const blob = await response.blob();
+
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error(err);
+    alert("Download failed.");
+  }
+};
+const deleteFile = async (id, filename) => {
+  const confirmed = window.confirm(
+    `Delete "${filename}"?\n\nThis will permanently remove the uploaded file and its GIS layer.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const response = await apiFetch(`/gis/files/${id}/`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      alert("Delete failed.");
+      return;
+    }
+
+    alert("File deleted successfully.");
+
+    loadGISFiles();
+    setMapRefreshKey((prev) => prev + 1);
+
+  } catch (err) {
+    console.error(err);
+    alert("Delete failed.");
+  }
+};
 
   const runGemPy = async () => {
     try {
@@ -274,7 +365,113 @@ export default function GISDataManager() {
             </Stack>
           </CardContent>
         </Card>
+        <Accordion
+  defaultExpanded={false}
+  sx={{
+    borderRadius: 3,
+    overflow: "hidden",
+    boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
+    "&:before": {
+      display: "none",
+    },
+  }}
+>
+  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+    <Box>
+      <Typography variant="h6" fontWeight={600}>
+        Manage Uploaded GIS Datasets
+      </Typography>
 
+      <Typography variant="body2" color="text.secondary">
+        {gisFiles.length} uploaded file{gisFiles.length !== 1 ? "s" : ""}
+      </Typography>
+    </Box>
+  </AccordionSummary>
+
+  <AccordionDetails>
+
+    <TableContainer>
+
+      <Table>
+
+        <TableHead>
+          <TableRow>
+            <TableCell><strong>File</strong></TableCell>
+            <TableCell><strong>Layer</strong></TableCell>
+            <TableCell><strong>Size</strong></TableCell>
+            <TableCell><strong>Status</strong></TableCell>
+            <TableCell align="center"><strong>Actions</strong></TableCell>
+          </TableRow>
+        </TableHead>
+
+        <TableBody>
+
+          {gisFiles.map((file) => (
+
+            <TableRow key={file.id}>
+
+              <TableCell>
+                {file.original_filename || "-"}
+              </TableCell>
+
+              <TableCell>
+                {file.layer_name}
+              </TableCell>
+
+              <TableCell>
+                {(file.file_size / 1024).toFixed(1)} KB
+              </TableCell>
+
+              <TableCell>
+                {file.has_file ? (
+                  <Chip
+                    label="Available"
+                    color="success"
+                    size="small"
+                  />
+                ) : (
+                  <Chip
+                    label="Missing"
+                    color="error"
+                    size="small"
+                  />
+                )}
+              </TableCell>
+
+              <TableCell align="center">
+
+                <IconButton
+  onClick={() =>
+    downloadFile(file.id, file.original_filename)
+  }
+>
+  <DownloadIcon />
+</IconButton>
+
+                <IconButton
+                  color="error"
+                  onClick={() =>
+  deleteFile(file.id, file.original_filename)
+}
+                >
+                  <DeleteIcon />
+                </IconButton>
+
+              </TableCell>
+
+            </TableRow>
+
+          ))}
+
+        </TableBody>
+
+      </Table>
+
+    </TableContainer>
+
+  </AccordionDetails>
+
+</Accordion>
         {/* GIS Tools + Map */}
         <Card
           variant="outlined"

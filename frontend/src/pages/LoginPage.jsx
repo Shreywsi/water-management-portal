@@ -59,6 +59,7 @@ function LoginPage() {
       });
 
       const data = await response.json();
+      
       if (!data.success) {
         setError(data.error || "Login failed.");
         setLoading(false);

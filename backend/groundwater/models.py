@@ -278,11 +278,15 @@ class AppUser(models.Model):
 
 
 class GisLayers(models.Model):
+
     layer_name = models.TextField()
     table_name = models.TextField(unique=True)
     geometry_type = models.TextField(blank=True, null=True)
     uploaded_at = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     visible = models.BooleanField(blank=True, null=True, default=True)
+    original_filename = models.TextField(blank=True, null=True)
+    file_path = models.TextField(blank=True, null=True)
+    file_size = models.BigIntegerField(default=0)
 
     class Meta:
         managed = True

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import "leaflet/dist/leaflet.css";
 import "leaflet-defaulticon-compatibility";
@@ -229,6 +229,7 @@ const trendLabel =
               <PlaceIcon sx={{ fontSize: 18, color: "info.dark" }} />
             </Box>
             <Box>
+              
               <Typography sx={{ fontSize: 15, fontWeight: 500 }}>
                 {loading ? <Skeleton width={80} /> : detail?.well?.well_name}
               </Typography>
@@ -366,7 +367,7 @@ const trendLabel =
 // ──────────────────────────────────────────────
 export default function WaterMap({ refreshKey }) {
   const [wells, setWells] = useState([]);
-const [clusters, setClusters] = useState(null);
+const [layers, setLayers] = useState([]);
 const [loading, setLoading] = useState(true);
 const [selectedWellId, setSelectedWellId] = useState(null);
   useEffect(() => {
@@ -381,76 +382,128 @@ const [selectedWellId, setSelectedWellId] = useState(null);
       setLoading(false);
     });
 
-  fetch(`${API_BASE}/village-clusters/`)
-    .then((res) => res.json())
-    .then((data) => {
-      setClusters(data);
-    })
-    .catch((err) => console.error(err));
+  fetch(`${API_BASE}/gis/geojson/`, {
+  headers: {
+    Authorization: `Token ${localStorage.getItem("authToken")}`,
+  },
+})
+  .then((res) => res.json())
+  .then((data) => {
+    setLayers(data);
+  })
+  .catch(console.error);
+
+  
 }, [refreshKey]);
 
   return (
-    <Box sx={{ position: "relative", width: "100%", height: "100%" }}>
-      <MapContainer
-        center={[22.83, 69.72]}
-        zoom={11}
-        style={{ height: "500px", width: "100%", borderRadius: "10px" }}
-      >
-        <MapClickTester />
-        <TileLayer
-          attribution="&copy; OpenStreetMap contributors"
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-       {/* Village Clusters */}
-{clusters && (
-  <GeoJSON
-    data={clusters}
-    style={() => ({
-      color: "#1565C0",
-      weight: 2,
-      fillColor: "#42A5F5",
-      fillOpacity: 0.25,
-    })}
-    onEachFeature={(feature, layer) => {
-      layer.bindPopup(
-        `<b>Village Cluster</b><br>ID: ${
-          feature.properties?.ogc_fid ?? "Unknown"
-        }`
-      );
+  <Box sx={{ position: "relative", width: "100%", height: "100%" }}>
 
-      layer.on({
-        mouseover: (e) => {
-          e.target.setStyle({
-            weight: 3,
-            fillOpacity: 0.5,
-          });
-        },
-        mouseout: (e) => {
-          e.target.setStyle({
-            weight: 2,
-            fillOpacity: 0.25,
-          });
-        },
-      });
-    }}
-  />
-)}
+    {/* GIS Layer Legend */}
+    <Paper
+  elevation={3}
+  sx={{
+    position: "absolute",
+    top: 16,
+    right: selectedWellId ? 390 : 16,
+    zIndex: 1000,
+    p: 2,
+    minWidth: 180,
+    borderRadius: 2,
+    bgcolor: "rgba(255,255,255,0.95)",
+  }}
+>
+      <Typography fontWeight={600} mb={1}>
+        GIS Layers
+      </Typography>
 
-{/* Wells */}
-{!loading &&
-  wells.map((well) => (
-    <Marker
-      key={well.id}
-      position={[well.latitude, well.longitude]}
-      icon={wellDotIcon}
-      eventHandlers={{
-        click: () => setSelectedWellId(well.id),
+      {layers.map((layer) => (
+        <Box
+          key={layer.id}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            mb: 0.5,
+          }}
+        >
+          <Box
+            sx={{
+              width: 15,
+              height: 15,
+              bgcolor: layer.color,
+              border: "1px solid black",
+              mr: 1,
+            }}
+          />
+
+          <Typography
+  variant="body2"
+  sx={{
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  }}
+>
+  {layer.name}
+</Typography>
+        </Box>
+      ))}
+    </Paper>
+
+        <MapContainer
+      center={[22.83, 69.72]}
+      zoom={11}
+      style={{
+        height: "500px",
+        width: "100%",
+        borderRadius: "10px",
       }}
-    />
-  ))}
-      </MapContainer>
+    >
+      <MapClickTester />
 
-      <WellPropertyPanel wellId={selectedWellId} onClose={() => setSelectedWellId(null)} />
-    </Box>
+      <TileLayer
+        attribution="&copy; OpenStreetMap contributors"
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+
+      {/* GIS Layers */}
+      {layers
+        .filter((layer) => layer.geojson)
+        .map((layer) => (
+          <GeoJSON
+            key={layer.id}
+            data={layer.geojson}
+            style={{
+              color: layer.color,
+              fillColor: layer.color,
+              fillOpacity: 0.45,
+              weight: 2,
+            }}
+            onEachFeature={(feature, leafletLayer) => {
+              leafletLayer.bindPopup(layer.name);
+            }}
+          />
+        ))}
+
+      {/* Well Markers */}
+      {!loading &&
+        wells.map((well) => (
+          <Marker
+            key={well.id}
+            position={[well.latitude, well.longitude]}
+            icon={wellDotIcon}
+            eventHandlers={{
+              click: () => setSelectedWellId(well.id),
+            }}
+          />
+        ))}
+    </MapContainer>
+
+    {/* Right-side Well Details Panel */}
+    <WellPropertyPanel
+      wellId={selectedWellId}
+      onClose={() => setSelectedWellId(null)}
+    />
+  </Box>
   );
 }
