@@ -12,7 +12,6 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 import os
 from pathlib import Path
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BASE_DIR.parent
@@ -196,14 +195,28 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
 
+# Media files (user-uploaded images, e.g. tool card gallery images)
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 CORS_ALLOWED_ORIGINS = [
     origin.strip() for origin in get_env("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if origin.strip()
 ]
+from corsheaders.defaults import default_headers
+
+CORS_ALLOW_HEADERS = list(default_headers) + ["x-admin-password"]
+# Shared password that unlocks add/edit/delete for tool cards in the admin
+# dashboard. Put ADMIN_EDIT_PASSWORD=your-real-password in your .env file —
+# this default only applies if it's missing from .env.
+ADMIN_EDIT_PASSWORD = get_env("ADMIN_EDIT_PASSWORD", "change-me-please")
 
 
 # Celery

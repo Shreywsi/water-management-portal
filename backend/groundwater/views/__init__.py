@@ -8,3 +8,5 @@ from .balance_views import *
 from .ml_views import *
 from .dataset_views import *
 from .upload_dashboard import *
+from .well_views import *
+from .tool_views import *

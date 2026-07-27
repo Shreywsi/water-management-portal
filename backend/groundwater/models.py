@@ -343,3 +343,96 @@ class MLModelState(models.Model):
 
     def __str__(self):
         return f"MLModelState({self.location_id}, needs_retrain={self.needs_retrain})"
+
+# ----------------------------
+# WELL INFORMATION
+# ----------------------------
+
+class Well(models.Model):
+    location = models.ForeignKey(
+        Location,
+        on_delete=models.CASCADE,
+        related_name="wells",
+    )
+
+    well_id = models.CharField(max_length=100)
+
+    observation_date = models.DateField()
+
+    latitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+    )
+
+    longitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-observation_date"]
+
+    def __str__(self):
+        return f"{self.well_id} ({self.location.name})"
+
+
+# ----------------------------
+# WELL PARAMETERS
+# ----------------------------
+
+class WellParameter(models.Model):
+    well = models.ForeignKey(
+        Well,
+        on_delete=models.CASCADE,
+        related_name="parameters",
+    )
+
+    parameter_name = models.CharField(max_length=255)
+
+    parameter_value = models.CharField(max_length=100)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.parameter_name}: {self.parameter_value}"
+
+ 
+# ----------------------------
+# TOOL CARDS (Tools & How They Work section)
+# ----------------------------
+ 
+class ToolCard(models.Model):
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+ 
+    # Only set for the 3 original tools (AI Prediction, Water Balance, QGIS).
+    # Left blank for any new card the admin adds.
+    icon_name = models.CharField(max_length=50, blank=True, null=True)
+    path = models.CharField(max_length=200, blank=True, null=True)
+    action_label = models.CharField(max_length=100, blank=True, null=True)
+ 
+    is_core = models.BooleanField(default=False)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+ 
+    class Meta:
+        ordering = ["order", "id"]
+ 
+    def __str__(self):
+        return self.title
+ 
+ 
+class ToolCardImage(models.Model):
+    tool_card = models.ForeignKey(
+        ToolCard, related_name="images", on_delete=models.CASCADE
+    )
+    image = models.ImageField(upload_to="tool_card_images/")
+    order = models.PositiveIntegerField(default=0)
+ 
+    class Meta:
+        ordering = ["order", "id"]
+ 

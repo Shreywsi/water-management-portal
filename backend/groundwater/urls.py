@@ -41,14 +41,24 @@ from .views import (
     parameter_delete,
     stale_locations,
     retrain_all_stale,
-    
-
+    list_wells,
+    add_well,
+    update_well,
+    delete_well,
+    export_wells,
+    list_tool_cards,
+    add_tool_card,
+    edit_tool_card,
+    delete_tool_card,
+    add_tool_card_image,
+    delete_tool_card_image,
+    verify_admin_password,
 )
 
 urlpatterns = [
     path("auth/login/", login_user),
     path("dashboard/", dashboard),
-    path("wells/", wells),
+    path("wells/", list_wells),
     path("wells/<int:well_id>/", well_detail),
     path("waterlevel/", waterlevel),
     path("pumping/", pumping),
@@ -96,4 +106,15 @@ path(
     path("parameters/<int:id>/", parameter_delete),
     path("ml/stale-locations/", stale_locations),
     path("ml/retrain-all-stale/", retrain_all_stale),
+    path("well/add/", add_well),
+    path("well/<int:pk>/edit/", update_well),
+    path("well/<int:pk>/", delete_well),
+    path("well/export/", export_wells),
+    path("tools/", list_tool_cards),
+    path("tools/add/", add_tool_card),
+    path("tools/<int:id>/edit/", edit_tool_card),
+    path("tools/<int:id>/delete/", delete_tool_card),
+    path("tools/<int:id>/images/add/", add_tool_card_image),
+    path("tools/images/<int:image_id>/delete/", delete_tool_card_image),
+    path("verify-admin-password/", verify_admin_password),
 ]
