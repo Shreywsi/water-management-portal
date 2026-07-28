@@ -92,6 +92,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'cloudinary_storage',
+    'cloudinary',
 
     'rest_framework',
     'rest_framework.authtoken',
@@ -194,18 +196,23 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+# Media files (user-uploaded images, e.g. tool card gallery images)
+MEDIA_URL = 'media/'
+
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': get_env('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': get_env('CLOUDINARY_API_KEY'),
+    'API_SECRET': get_env('CLOUDINARY_API_SECRET'),
+}
+
 STORAGES = {
     "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
     },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
-
-# Media files (user-uploaded images, e.g. tool card gallery images)
-MEDIA_URL = 'media/'
-MEDIA_ROOT = BASE_DIR / 'media'
 
 CORS_ALLOWED_ORIGINS = [
     origin.strip() for origin in get_env("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if origin.strip()

@@ -1,14 +1,11 @@
 from django.http import HttpResponse
 from django.urls import path, include
 from django.contrib import admin
-from django.conf import settings
-from django.conf.urls.static import static
 
 urlpatterns = [
     path("", lambda request: HttpResponse("Water Management Backend Running")),
     path("admin/", admin.site.urls),
     path("api/", include("groundwater.urls")),
 ]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Media files (uploaded images) are now served directly from Cloudinary's
+# CDN, not from this Django app, so no local media URL/static() serving needed.
