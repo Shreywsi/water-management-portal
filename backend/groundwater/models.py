@@ -439,4 +439,14 @@ class ToolCardImage(models.Model):
  
     class Meta:
         ordering = ["order", "id"]
- 
+
+class DashboardBanner(models.Model):
+    title = models.CharField(max_length=200, blank=True)
+    image = models.ImageField(upload_to="dashboard/banner/")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.title or f"Banner {self.id}"

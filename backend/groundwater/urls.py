@@ -57,6 +57,10 @@ from .views import (
     download_gis_file,
     delete_gis_file,
     gis_geojson,
+    get_dashboard_banner,
+    upload_dashboard_banner,
+    delete_dashboard_banner,
+
 )
 
 urlpatterns = [
@@ -125,4 +129,7 @@ path(
     path("gis/files/<int:id>/download/", download_gis_file),
     path("gis/files/<int:id>/", delete_gis_file),
     path("gis/geojson/", gis_geojson),
+    path("dashboard/banner/", get_dashboard_banner),
+    path("dashboard/banner/upload/", upload_dashboard_banner),
+    path("dashboard/banner/delete/<int:image_id>/", delete_dashboard_banner),
 ]

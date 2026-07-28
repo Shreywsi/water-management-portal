@@ -37,6 +37,7 @@ import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import PlaceIcon from "@mui/icons-material/Place";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import DownloadIcon from "@mui/icons-material/Download";
 
 const NAVY = "#1E293B"; // matches sidebar
 const NAVY_SOFT = "#1E293B14";
@@ -114,7 +115,41 @@ export default function WaterBalanceHistory() {
       setRetraining(false);
     }
   };
+  const handleDownloadHistoryCSV = () => {
+  if (!history || history.length === 0) return;
 
+  const headers = ["ID", "Date", "Time", "Timestamp", "Delta S", "Status"];
+  const rows = history.map((item) => [
+    item.id,
+    item.date,
+    item.time,
+    `${item.date} ${item.time}`,
+    item.delta_s,
+    item.delta_s >= 0 ? "Net Recharge" : "Net Depletion",
+  ]);
+
+  const csvContent = [headers, ...rows]
+    .map((row) =>
+      row.map((val) => `"${String(val ?? "").replace(/"/g, '""')}"`).join(",")
+    )
+    .join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const locationName =
+    locations.find((loc) => loc.id === selectedLocation)?.name || "location";
+
+  link.href = url;
+  link.download = `water-balance-history-${locationName}-${new Date()
+    .toISOString()
+    .slice(0, 10)}.csv`;
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
   const filteredHistory = history.filter((item) =>
     `${item.date} ${item.time}`
       .toLowerCase()
@@ -206,30 +241,63 @@ export default function WaterBalanceHistory() {
             boxShadow: "0 2px 8px rgba(15,23,42,0.05)",
           }}
         >
-          <Stack direction="row" spacing={1.5} alignItems="center" mb={3}>
-            <Avatar
-              variant="rounded"
-              sx={{
-                bgcolor: NAVY_SOFT,
-                color: NAVY,
-                width: 40,
-                height: 40,
-              }}
-            >
-              <HistoryIcon fontSize="small" />
-            </Avatar>
+          <Stack
+  direction="row"
+  justifyContent="space-between"
+  alignItems="center"
+  mb={3}
+  spacing={2}
+>
+  <Stack
+  direction="row"
+  justifyContent="space-between"
+  alignItems="center"
+  mb={3}
+  spacing={2}
+  sx={{ width: "100%" }}
+>
+    <Avatar
+      variant="rounded"
+      sx={{
+        bgcolor: NAVY_SOFT,
+        color: NAVY,
+        width: 40,
+        height: 40,
+      }}
+    >
+      <HistoryIcon fontSize="small" />
+    </Avatar>
 
-            <Box>
-              <Typography variant="h5" fontWeight={700}>
-                Water Balance History & Analytics
-              </Typography>
+    <Box>
+      <Typography variant="h5" fontWeight={700}>
+        Water Balance History & Analytics
+      </Typography>
 
-              <Typography variant="body2" color="text.secondary">
-                Review previously saved records, analyse trends, and monitor water
-                balance changes over time.
-              </Typography>
-            </Box>
-          </Stack>
+      <Typography variant="body2" color="text.secondary">
+        Review previously saved records, analyse trends, and monitor water
+        balance changes over time.
+      </Typography>
+    </Box>
+  </Stack>
+
+  <Button
+    variant="outlined"
+    endIcon={<DownloadIcon />}
+    onClick={handleDownloadHistoryCSV}
+    disabled={history.length === 0}
+    sx={{
+      textTransform: "none",
+      fontWeight: 600,
+      borderRadius: 2,
+      whiteSpace: "nowrap",
+      borderColor: NAVY,
+      color: NAVY,
+      "&:hover": { borderColor: NAVY, bgcolor: NAVY_SOFT },
+    }}
+  >
+    Download CSV
+  </Button>
+</Stack>
 
           {/* LOCATION SELECTOR */}
           <FormControl

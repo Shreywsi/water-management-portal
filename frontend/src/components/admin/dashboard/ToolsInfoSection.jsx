@@ -31,8 +31,6 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from "@mui/icons-material/Close";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import LockOpenOutlinedIcon from "@mui/icons-material/LockOpenOutlined";
 
 import {
   fetchToolCards,
@@ -41,9 +39,11 @@ import {
   deleteToolCard,
   addToolCardImage,
   deleteToolCardImage,
-  verifyAdminPassword,
 } from "../../../api/toolCardApi";
 // ^ adjust this relative path to wherever you place toolCardApi.js
+
+import { useDashboardEdit } from "../../../context/DashboardEditContext";
+// ^ adjust this relative path to wherever you place DashboardEditContext.jsx
 
 const ACCENT = "#1E293B";
 const SLIDESHOW_INTERVAL_MS = 4000;
@@ -65,17 +65,12 @@ export default function ToolsInfoSection() {
   const fileInputRef = useRef(null);
   const pendingUploadCardId = useRef(null);
 
+  // --- edit mode now comes from the shared dashboard-wide context ---
+  const { editMode, adminPassword } = useDashboardEdit();
+
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState({}); // { [cardId]: imageIndex }
-
-  // --- edit mode (the ONLY thing that reveals edit controls) ---
-  const [editMode, setEditMode] = useState(false);
-  const [adminPassword, setAdminPassword] = useState("");
-  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
-  const [passwordInput, setPasswordInput] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-  const [verifying, setVerifying] = useState(false);
 
   // --- add/edit text dialog ---
   const [formOpen, setFormOpen] = useState(false);
@@ -93,9 +88,6 @@ export default function ToolsInfoSection() {
 
   useEffect(() => {
     loadCards();
-    // Note: edit mode is intentionally NOT restored from storage — every
-    // visit starts as a plain, read-only dashboard. The admin has to click
-    // "Edit Dashboard" and enter the password each time they want to edit.
   }, []);
 
   // Auto-advancing slideshow for cards with more than one image —
@@ -144,36 +136,6 @@ export default function ToolsInfoSection() {
     const cur = activeImage[card.id] || 0;
     const next = (cur + delta + imgs.length) % imgs.length;
     showImage(card.id, next);
-  }
-
-  // ---------- edit mode toggle ----------
-  function handleEditDashboardClick() {
-    if (editMode) {
-      setEditMode(false);
-      return;
-    }
-    setPasswordInput("");
-    setPasswordError("");
-    setPasswordDialogOpen(true);
-  }
-
-  async function handleUnlockSubmit() {
-    setVerifying(true);
-    setPasswordError("");
-    try {
-      const ok = await verifyAdminPassword(passwordInput);
-      if (ok) {
-        setAdminPassword(passwordInput);
-        setEditMode(true);
-        setPasswordDialogOpen(false);
-      } else {
-        setPasswordError("Incorrect password.");
-      }
-    } catch {
-      setPasswordError("Couldn't verify password. Try again.");
-    } finally {
-      setVerifying(false);
-    }
   }
 
   // ---------- add / edit text ----------
@@ -265,44 +227,27 @@ export default function ToolsInfoSection() {
     <Box>
       <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleFileChosen} />
 
-      <Stack direction="row" alignItems="center" sx={{ mb: 3 }}>
-        
-
-        <Stack direction="row" spacing={1.5} sx={{ ml: "auto" }}>
-          {editMode && (
-            <Button
-              startIcon={<AddIcon />}
-              variant="outlined"
-              onClick={openAddForm}
-              sx={{
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 600,
-                color: ACCENT,
-                borderColor: ACCENT,
-                "&:hover": { borderColor: ACCENT, bgcolor: `${ACCENT}0A` },
-              }}
-            >
-              Add card
-            </Button>
-          )}
+      {/* header row now only holds "Add card" — Edit Dashboard lives in the Topbar */}
+      {editMode && (
+        <Stack direction="row" alignItems="center" sx={{ mb: 3 }}>
           <Button
-            startIcon={editMode ? <LockOpenOutlinedIcon /> : <LockOutlinedIcon />}
-            variant={editMode ? "contained" : "outlined"}
-            onClick={handleEditDashboardClick}
+            startIcon={<AddIcon />}
+            variant="outlined"
+            onClick={openAddForm}
             sx={{
+              ml: "auto",
               borderRadius: 2,
               textTransform: "none",
               fontWeight: 600,
-              ...(editMode
-                ? { bgcolor: ACCENT, "&:hover": { bgcolor: "#0f172a" } }
-                : { color: ACCENT, borderColor: ACCENT, "&:hover": { borderColor: ACCENT, bgcolor: `${ACCENT}0A` } }),
+              color: ACCENT,
+              borderColor: ACCENT,
+              "&:hover": { borderColor: ACCENT, bgcolor: `${ACCENT}0A` },
             }}
           >
-            {editMode ? "Done Editing" : "Edit Dashboard"}
+            Add card
           </Button>
         </Stack>
-      </Stack>
+      )}
 
       {/* 1 card per row on phone, 2 on tablet, 3 on desktop.
           Plain CSS grid on purpose — MUI's <Grid> item/xs/sm props behave
@@ -615,31 +560,6 @@ export default function ToolsInfoSection() {
           );
         })}
       </Box>
-
-      {/* --- Password dialog --- */}
-      <Dialog open={passwordDialogOpen} onClose={() => setPasswordDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Enter admin password</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            type="password"
-            label="Password"
-            value={passwordInput}
-            onChange={(e) => setPasswordInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleUnlockSubmit()}
-            error={!!passwordError}
-            helperText={passwordError}
-            sx={{ mt: 1 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPasswordDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleUnlockSubmit} disabled={verifying}>
-            {verifying ? "Checking..." : "Unlock"}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       {/* --- Add/edit text dialog --- */}
       <Dialog open={formOpen} onClose={() => setFormOpen(false)} maxWidth="sm" fullWidth>

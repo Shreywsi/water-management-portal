@@ -1,9 +1,15 @@
 import { Box } from "@mui/material";
+import { useLocation } from "react-router-dom";
 
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 
 export default function AdminLayout({ children }) {
+  const location = useLocation();
+
+const showBanner =
+  location.pathname === "/admin" ||
+  location.pathname === "/admin/dashboard";
   return (
     <Box
       sx={{
@@ -25,7 +31,7 @@ export default function AdminLayout({ children }) {
         }}
       >
         {/* Top Navigation */}
-        <Topbar />
+        <Topbar showBanner={showBanner} />
 
         {/* Page Content */}
         <Box
