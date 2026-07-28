@@ -184,16 +184,36 @@ def train_model(location_id):
     # ---------------------------------------------------
     # Train
     # ---------------------------------------------------
-    early_stop = EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True)
+    from tensorflow.keras.callbacks import ReduceLROnPlateau
 
+    # Lower patience + min_delta so training stops as soon as it plateaus
+    # instead of grinding through unproductive epochs. ReduceLROnPlateau
+    # lets the optimizer take smaller steps as it converges, so we reach
+    # the same quality in fewer epochs instead of needing a high epoch cap.
+    early_stop = EarlyStopping(
+        monitor="val_loss",
+        patience=6,
+        min_delta=1e-4,
+        restore_best_weights=True,
+    )
+    reduce_lr = ReduceLROnPlateau(
+        monitor="val_loss",
+        factor=0.5,
+        patience=3,
+        min_lr=1e-5,
+    )
+
+    # Small datasets (8+ rows) converge quickly; 60 epochs is a safe
+    # ceiling since early stopping + restore_best_weights already
+    # prevents wasted training — this just lowers the worst case.
     history = model.fit(
         X_train,
         y_train,
         validation_data=(X_test, y_test),
-        epochs=100,
+        epochs=60,
         batch_size=8,
-        callbacks=[early_stop],
-        verbose=1
+        callbacks=[early_stop, reduce_lr],
+        verbose=0,
     )
 
     pd.DataFrame(history.history).to_csv(

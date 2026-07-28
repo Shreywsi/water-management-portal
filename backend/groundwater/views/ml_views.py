@@ -205,6 +205,42 @@ def ai_dashboard(request):
         }
     })
 
+def _build_insights(historical_records, prediction, confidence, avg_delta_s):
+    """Generates plain-English analysis for the AI Insights panel."""
+    if not historical_records:
+        return {"messages": ["Not enough historical data to generate insights."], "trend_pct": 0}
+
+    recent = historical_records[-6:] if len(historical_records) >= 6 else historical_records
+    recent_avg = sum(r.delta_s for r in recent) / len(recent)
+
+    pct_change = ((prediction - avg_delta_s) / abs(avg_delta_s)) * 100 if avg_delta_s else 0
+
+    messages = []
+    if pct_change > 10:
+        messages.append(
+            f"The predicted water balance is trending upward, roughly {pct_change:.1f}% above the historical average."
+        )
+    elif pct_change < -10:
+        messages.append(
+            f"The predicted water balance is trending downward, roughly {abs(pct_change):.1f}% below the historical average."
+        )
+    else:
+        messages.append("The predicted water balance is broadly in line with historical levels, showing no strong trend.")
+
+    if prediction < 0 and recent_avg >= 0:
+        messages.append("The model forecasts a shift from recharge to depletion — groundwater levels may decline in the coming period.")
+    elif prediction >= 0 and recent_avg < 0:
+        messages.append("The model forecasts a recovery from recent depletion toward a positive water balance.")
+
+    if confidence is not None:
+        if confidence >= 75:
+            messages.append(f"Model confidence is {confidence}%, so this forecast can be considered reasonably reliable.")
+        elif confidence >= 50:
+            messages.append(f"Model confidence is moderate ({confidence}%) — treat this forecast as indicative rather than precise.")
+        else:
+            messages.append(f"Model confidence is low ({confidence}%). Consider adding more historical records or retraining.")
+
+    return {"messages": messages, "trend_pct": round(pct_change, 1)}
 
 @api_view(["GET"])
 def forecast_api(request, period):
@@ -322,7 +358,26 @@ def forecast_api(request, period):
     record_count = WaterBalance.objects.filter(
         location=location
     ).count()
+    historical_qs = (
+        WaterBalance.objects
+        .filter(location=location)
+        .order_by("entry_date", "created_at")
+    )
+    historical_records = list(historical_qs)
+    historical_series = [
+        {"date": str(r.entry_date), "actual": r.delta_s}
+        for r in historical_records[-12:]
+    ]
+    avg_delta_s = (
+        sum(r.delta_s for r in historical_records) / len(historical_records)
+        if historical_records else 0
+    )
 
+    last_training = None
+    if os.path.exists(model_path):
+        last_training = datetime.fromtimestamp(
+            os.path.getmtime(model_path)
+        ).strftime("%d %b %Y %H:%M")
     if "water_balance" in metrics:
         wm = metrics["water_balance"]
     else:
@@ -364,38 +419,35 @@ def forecast_api(request, period):
     # -------------------------
 
     if rmse is None:
-
         lower = prediction
-
         upper = prediction
-
     else:
-
         lower = round(prediction - rmse, 2)
-
         upper = round(prediction + rmse, 2)
 
+    insights_data = _build_insights(
+        historical_records=historical_records,
+        prediction=prediction,
+        confidence=confidence,
+        avg_delta_s=avg_delta_s,
+    )
+
     result = {
-
-    "prediction": prediction,
-
-    "forecast": forecast,
+        "prediction": prediction,
+        "forecast": forecast,
         "confidence": confidence,
-
         "confidence_level": confidence_level,
-
         "prediction_range": {
-
             "lower": lower,
-
             "upper": upper,
-
         },
-
         "years_of_history": record_count,
-
         "model_metrics": metrics,
-
+        "historical": historical_series,
+        "insights": insights_data["messages"],
+        "trend_pct": insights_data["trend_pct"],
+        "last_training": last_training,
+        "model_ready": os.path.exists(model_path),
     }
 
     return Response({
