@@ -7,13 +7,12 @@ def get_wells():
     with connection.cursor() as cursor:
         cursor.execute("""
             SELECT
+                well_id,
                 latitude,
-                longitude,
-                depth_m
-            FROM groundwater_map
+                longitude
+            FROM groundwater_well
             WHERE latitude IS NOT NULL
-              AND longitude IS NOT NULL
-              AND depth_m IS NOT NULL;
+              AND longitude IS NOT NULL;
         """)
 
         columns = [col[0] for col in cursor.description]

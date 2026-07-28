@@ -30,7 +30,7 @@ import MapIcon from "@mui/icons-material/Map";
 import TerrainIcon from "@mui/icons-material/Terrain";
 import LayersIcon from "@mui/icons-material/Layers";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
-import PlayCircleIcon from "@mui/icons-material/PlayCircle";
+import AppsIcon from "@mui/icons-material/Apps";
 
 import { apiFetch } from "../../utils/api";
 import WaterMap from "../../components/WaterMap";
@@ -218,19 +218,37 @@ const deleteFile = async (id, filename) => {
     }
   };
 
-  const runModflow = async () => {
-    const response = await apiFetch("/run-modflow/", {
-      method: "POST",
-    });
+  const handleOpenModelMuse = async () => {
+    try {
+      // Check if launcher is running
+      const statusResponse = await fetch("http://127.0.0.1:5001/modelmuse-status");
 
-    const data = await response.json();
+      if (!statusResponse.ok) {
+        alert("Water Management Launcher is not running.");
+        return;
+      }
 
-    if (data.success) {
+      const status = await statusResponse.json();
+
+      if (!status.installed) {
+        alert("ModelMuse is not installed on this computer.");
+        return;
+      }
+
+      // Ask launcher to open ModelMuse
+      const response = await fetch("http://127.0.0.1:5001/open-modelmuse", {
+        method: "POST",
+      });
+
+      const result = await response.json();
+
+      alert(result.message);
+    } catch (error) {
+      console.error(error);
+
       alert(
-        `✅ MODFLOW simulation completed successfully!\n\nWorkspace:\n${data.workspace}`
+        "Water Management Launcher is not running.\n\nPlease start the launcher first."
       );
-    } else {
-      alert(`❌ ${data.error}`);
     }
   };
 
@@ -523,6 +541,22 @@ const deleteFile = async (id, filename) => {
 
                 <Button
                   variant="outlined"
+                  startIcon={<AppsIcon />}
+                  onClick={handleOpenModelMuse}
+                  sx={{
+                    borderColor: ACCENT,
+                    color: ACCENT,
+                    "&:hover": {
+                      borderColor: "#101A30",
+                      bgcolor: `${ACCENT}0D`,
+                    },
+                  }}
+                >
+                  Open ModelMuse
+                </Button>
+
+                <Button
+                  variant="outlined"
                   startIcon={<TerrainIcon />}
                   onClick={runGemPy}
                   disabled={gempyLoading}
@@ -536,22 +570,6 @@ const deleteFile = async (id, filename) => {
                   }}
                 >
                   {gempyLoading ? "Running…" : "Run GemPy"}
-                </Button>
-
-                <Button
-                  variant="outlined"
-                  startIcon={<PlayCircleIcon />}
-                  onClick={runModflow}
-                  sx={{
-                    borderColor: ACCENT,
-                    color: ACCENT,
-                    "&:hover": {
-                      borderColor: "#101A30",
-                      bgcolor: `${ACCENT}0D`,
-                    },
-                  }}
-                >
-                  Run MODFLOW
                 </Button>
               </Stack>
 
