@@ -11,10 +11,14 @@ __pycache__/
 .env
 .env.local
 
+# -----------------------------
 # Django
+# -----------------------------
 db.sqlite3
 *.log
 backend/staticfiles/
+backend/media/
+backend/uploads/
 
 # -----------------------------
 # Node / React
@@ -31,7 +35,10 @@ dist/
 # macOS
 # -----------------------------
 .DS_Store
+
+# -----------------------------
 # ML generated files
+# -----------------------------
 backend/ml/saved_models/
 
 # Exported datasets
@@ -40,5 +47,8 @@ backend/uploads/datasets/
 # Redis
 backend/dump.rdb
 
-# Environment files
+# Frontend environment
 frontend/.env*
+
+# Temporary files
+downloaded_test.txt
