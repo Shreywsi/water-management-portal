@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import API_BASE from "../../config/api";
-import Sidebar from "../../components/Sidebar";
 import WaterBalanceCard from "../../components/WaterBalanceCard.jsx";
 import {
+  Container,
   Card,
   Typography,
   Table,
@@ -17,12 +17,12 @@ import {
   TextField,
   Paper,
   Box,
+  Stack,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   Avatar,
-  Stack,
   InputAdornment,
   Alert,
   AlertTitle,
@@ -39,8 +39,12 @@ import PlaceIcon from "@mui/icons-material/Place";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import DownloadIcon from "@mui/icons-material/Download";
 
-const NAVY = "#1E293B"; // matches sidebar
-const NAVY_SOFT = "#1E293B14";
+// Same design tokens as GISDataManager.jsx / Locations.jsx / WaterBalanceCard.jsx
+// so this page reads as part of the same site.
+const ACCENT = "#1E293B";
+const ACCENT_TINT = `${ACCENT}1A`;
+const ACCENT_SOFT_BG = "#F8FAFC";
+const CARD_SHADOW = "0 1px 3px rgba(15,23,42,0.06)";
 
 export default function WaterBalanceHistory() {
   const [history, setHistory] = useState([]);
@@ -157,17 +161,43 @@ export default function WaterBalanceHistory() {
   );
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh" }}>
+    <Container
+      maxWidth="xl"
+      sx={{
+        py: { xs: 3, sm: 4, md: 5 },
+        px: { xs: 2, sm: 3, md: 4 },
+      }}
+    >
+      <Stack spacing={{ xs: 3, md: 4 }}>
+        {/* ============================================================
+            PAGE HEADING — same icon-avatar + h4 style as GIS Data Manager
+        ============================================================ */}
 
-      <Sidebar />
+        <Box>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Avatar
+              variant="rounded"
+              sx={{
+                bgcolor: ACCENT_TINT,
+                color: ACCENT,
+                width: 48,
+                height: 48,
+              }}
+            >
+              <WaterDropIcon />
+            </Avatar>
 
-      <Box
-        sx={{
-          flex: 1,
-          p: { xs: 2.5, md: 4 },
-          bgcolor: "#f5f7fb",
-        }}
-      >
+            <Box>
+              <Typography variant="h4" fontWeight={700}>
+                Water Balance
+              </Typography>
+
+              <Typography color="text.secondary">
+                Log inflow and outflow entries, then review history and trends over time.
+              </Typography>
+            </Box>
+          </Stack>
+        </Box>
 
         {/* ============================================================
             STALE MODEL BANNER (only renders when something is stale)
@@ -178,7 +208,6 @@ export default function WaterBalanceHistory() {
             severity="warning"
             icon={<WarningAmberIcon fontSize="inherit" />}
             sx={{
-              mb: 3,
               borderRadius: 2.5,
               alignItems: "center",
               "& .MuiAlert-message": { width: "100%" },
@@ -208,107 +237,74 @@ export default function WaterBalanceHistory() {
             WATER BALANCE ENTRY
         ============================================================ */}
 
-        <Box
-          sx={{
-            mb: 4,
-            p: 3,
-            borderRadius: 3,
-            bgcolor: "#FFFFFF",
-            border: "1px solid",
-            borderColor: "divider",
-            boxShadow: "0 2px 8px rgba(15,23,42,0.05)",
-          }}
-        >
-          
-
-          <Box sx={{ mb: 1 }}>
-            <WaterBalanceCard unit="MCM" />
-          </Box>
-        </Box>
+        <WaterBalanceCard unit="MCM" />
 
         {/* ============================================================
             HISTORY & ANALYTICS
         ============================================================ */}
 
-        <Box
+        <Card
+          variant="outlined"
           sx={{
-            mt: 5,
-            p: 3,
             borderRadius: 3,
-            bgcolor: "#FFFFFF",
-            border: "1px solid",
             borderColor: "divider",
-            boxShadow: "0 2px 8px rgba(15,23,42,0.05)",
+            boxShadow: CARD_SHADOW,
+            p: { xs: 2.5, sm: 3 },
           }}
         >
           <Stack
-  direction="row"
-  justifyContent="space-between"
-  alignItems="center"
-  mb={3}
-  spacing={2}
->
-  <Stack
-  direction="row"
-  justifyContent="space-between"
-  alignItems="center"
-  mb={3}
-  spacing={2}
-  sx={{ width: "100%" }}
->
-    <Avatar
-      variant="rounded"
-      sx={{
-        bgcolor: NAVY_SOFT,
-        color: NAVY,
-        width: 40,
-        height: 40,
-      }}
-    >
-      <HistoryIcon fontSize="small" />
-    </Avatar>
+            direction={{ xs: "column", sm: "row" }}
+            justifyContent="space-between"
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            spacing={2}
+            sx={{ mb: 3 }}
+          >
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Avatar
+                variant="rounded"
+                sx={{
+                  bgcolor: ACCENT_TINT,
+                  color: ACCENT,
+                  width: 48,
+                  height: 48,
+                }}
+              >
+                <HistoryIcon />
+              </Avatar>
 
-    <Box>
-      <Typography variant="h5" fontWeight={700}>
-        Water Balance History & Analytics
-      </Typography>
+              <Box>
+                <Typography variant="h5" fontWeight={700}>
+                  Water Balance History & Analytics
+                </Typography>
 
-      <Typography variant="body2" color="text.secondary">
-        Review previously saved records, analyse trends, and monitor water
-        balance changes over time.
-      </Typography>
-    </Box>
-  </Stack>
+                <Typography variant="body2" color="text.secondary">
+                  Review previously saved records, analyse trends, and monitor water
+                  balance changes over time.
+                </Typography>
+              </Box>
+            </Stack>
 
-  <Button
-    variant="outlined"
-    endIcon={<DownloadIcon />}
-    onClick={handleDownloadHistoryCSV}
-    disabled={history.length === 0}
-    sx={{
-      textTransform: "none",
-      fontWeight: 600,
-      borderRadius: 2,
-      whiteSpace: "nowrap",
-      borderColor: NAVY,
-      color: NAVY,
-      "&:hover": { borderColor: NAVY, bgcolor: NAVY_SOFT },
-    }}
-  >
-    Download CSV
-  </Button>
-</Stack>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={handleDownloadHistoryCSV}
+              disabled={history.length === 0}
+              sx={{
+                textTransform: "none",
+                fontWeight: 600,
+                borderRadius: 2,
+                whiteSpace: "nowrap",
+                borderColor: ACCENT,
+                color: ACCENT,
+                "&:hover": { borderColor: "#101A30", bgcolor: ACCENT_SOFT_BG },
+              }}
+            >
+              Download CSV
+            </Button>
+          </Stack>
 
           {/* LOCATION SELECTOR */}
-          <FormControl
-  sx={{
-    minWidth: 260,
-    mt: 3,
-    mb: 3,
-    bgcolor: "#fff",
-    borderRadius: 1.5,
-  }}
->
+          <FormControl sx={{ minWidth: 260, mb: 3 }}>
             <InputLabel>Location</InputLabel>
             <Select
               value={selectedLocation}
@@ -316,15 +312,9 @@ export default function WaterBalanceHistory() {
               onChange={(e) => setSelectedLocation(e.target.value)}
               startAdornment={
                 <InputAdornment position="start" sx={{ ml: 1 }}>
-                  <PlaceIcon fontSize="small" sx={{ color: NAVY }} />
+                  <PlaceIcon fontSize="small" sx={{ color: ACCENT }} />
                 </InputAdornment>
               }
-              sx={{
-                borderRadius: 1.5,
-                "& .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "divider",
-                },
-              }}
             >
               {locations.length === 0 ? (
                 <MenuItem disabled>No Locations Found</MenuItem>
@@ -349,13 +339,13 @@ export default function WaterBalanceHistory() {
                   p: 2.5,
                   borderRadius: 2.5,
                   borderColor: "divider",
-                  boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
+                  boxShadow: CARD_SHADOW,
                 }}
               >
                 <Stack direction="row" spacing={1.5} alignItems="center" mb={1}>
                   <Avatar
                     variant="rounded"
-                    sx={{ bgcolor: NAVY_SOFT, color: NAVY, width: 34, height: 34 }}
+                    sx={{ bgcolor: ACCENT_TINT, color: ACCENT, width: 34, height: 34 }}
                   >
                     <DescriptionIcon fontSize="small" />
                   </Avatar>
@@ -377,7 +367,7 @@ export default function WaterBalanceHistory() {
                   p: 2.5,
                   borderRadius: 2.5,
                   borderColor: "divider",
-                  boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
+                  boxShadow: CARD_SHADOW,
                 }}
               >
                 <Stack direction="row" spacing={1.5} alignItems="center" mb={1}>
@@ -405,7 +395,7 @@ export default function WaterBalanceHistory() {
                   p: 2.5,
                   borderRadius: 2.5,
                   borderColor: "divider",
-                  boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
+                  boxShadow: CARD_SHADOW,
                 }}
               >
                 <Stack direction="row" spacing={1.5} alignItems="center" mb={1}>
@@ -433,13 +423,13 @@ export default function WaterBalanceHistory() {
                   p: 2.5,
                   borderRadius: 2.5,
                   borderColor: "divider",
-                  boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
+                  boxShadow: CARD_SHADOW,
                 }}
               >
                 <Stack direction="row" spacing={1.5} alignItems="center" mb={1}>
                   <Avatar
                     variant="rounded"
-                    sx={{ bgcolor: NAVY_SOFT, color: NAVY, width: 34, height: 34 }}
+                    sx={{ bgcolor: ACCENT_TINT, color: ACCENT, width: 34, height: 34 }}
                   >
                     <WaterDropIcon fontSize="small" />
                   </Avatar>
@@ -471,12 +461,7 @@ export default function WaterBalanceHistory() {
             label="Search by Date / Timestamp"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            sx={{
-              mb: 3,
-              bgcolor: "#fff",
-              borderRadius: 1.5,
-              "& .MuiOutlinedInput-root": { borderRadius: 1.5 },
-            }}
+            sx={{ mb: 3 }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -488,141 +473,97 @@ export default function WaterBalanceHistory() {
 
           {/* TABLE */}
 
-          <Card
+          <TableContainer
+            component={Paper}
             variant="outlined"
             sx={{
               borderRadius: 2.5,
               borderColor: "divider",
-              boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
-              overflow: "hidden",
+              boxShadow: CARD_SHADOW,
             }}
           >
+            <Table>
+              <TableHead>
+                <TableRow sx={{ bgcolor: ACCENT }}>
+                  <TableCell sx={{ color: "#fff", fontWeight: 600 }}>ID</TableCell>
+                  <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Date</TableCell>
+                  <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Time</TableCell>
+                  <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Timestamp</TableCell>
+                  <TableCell align="center" sx={{ color: "#fff", fontWeight: 600 }}>ΔS</TableCell>
+                  <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Status</TableCell>
+                </TableRow>
+              </TableHead>
 
-            <TableContainer>
-
-              <Table>
-
-                <TableHead>
-
-                  <TableRow sx={{ bgcolor: NAVY }}>
-
-                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>ID</TableCell>
-
-                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Date</TableCell>
-
-                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Time</TableCell>
-
-                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Timestamp</TableCell>
-
-                    <TableCell align="center" sx={{ color: "#fff", fontWeight: 600 }}>ΔS</TableCell>
-
-                    <TableCell sx={{ color: "#fff", fontWeight: 600 }}>Status</TableCell>
-
+              <TableBody>
+                {filteredHistory.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                      <Typography color="text.secondary" variant="body2">
+                        No records match your search.
+                      </Typography>
+                    </TableCell>
                   </TableRow>
+                )}
 
-                </TableHead>
+                {filteredHistory.map((item, index) => (
+                  <TableRow
+                    key={item.id}
+                    hover
+                    sx={{
+                      backgroundColor: index === 0 ? "#E3F2FD" : "inherit",
+                      "&:last-child td": { borderBottom: 0 },
+                    }}
+                  >
+                    <TableCell sx={{ color: "text.secondary" }}>{item.id}</TableCell>
 
-                <TableBody>
+                    <TableCell>{item.date}</TableCell>
 
-                  {filteredHistory.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
-                        <Typography color="text.secondary" variant="body2">
-                          No records match your search.
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  )}
+                    <TableCell>{item.time}</TableCell>
 
-                  {filteredHistory.map((item, index) => (
+                    <TableCell sx={{ color: "text.secondary" }}>
+                      {`${item.date} ${item.time}`}
+                    </TableCell>
 
-                    <TableRow
-                      key={item.id}
-                      hover
+                    <TableCell
+                      align="center"
                       sx={{
-                        backgroundColor:
-                          index === 0 ? "#E3F2FD" : "inherit",
-                        "&:last-child td": { borderBottom: 0 },
+                        fontWeight: 700,
+                        color: item.delta_s >= 0 ? "success.main" : "error.main",
                       }}
                     >
+                      {item.delta_s >= 0 ? "⬆ " : "⬇ "}
+                      {item.delta_s}
+                    </TableCell>
 
-                      <TableCell sx={{ color: "text.secondary" }}>{item.id}</TableCell>
+                    <TableCell>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Chip
+                          color={item.delta_s >= 0 ? "success" : "error"}
+                          size="small"
+                          label={item.delta_s >= 0 ? "Net Recharge" : "Net Depletion"}
+                          sx={{ fontWeight: 500 }}
+                        />
 
-                      <TableCell>
-                        {item.date}
-                      </TableCell>
-
-                      <TableCell>
-                        {item.time}
-                      </TableCell>
-
-                      <TableCell sx={{ color: "text.secondary" }}>
-                        {`${item.date} ${item.time}`}
-                      </TableCell>
-
-                      <TableCell
-                        align="center"
-                        sx={{
-                          fontWeight: 700,
-                          color:
-                            item.delta_s >= 0
-                              ? "success.main"
-                              : "error.main",
-                        }}
-                      >
-                        {item.delta_s >= 0 ? "⬆ " : "⬇ "}
-                        {item.delta_s}
-                      </TableCell>
-
-                      <TableCell>
-
-                        <Stack direction="row" spacing={1} alignItems="center">
+                        {index === 0 && (
                           <Chip
-                            color={
-                              item.delta_s >= 0
-                                ? "success"
-                                : "error"
-                            }
+                            label="Latest"
                             size="small"
-                            label={
-                              item.delta_s >= 0
-                                ? "Net Recharge"
-                                : "Net Depletion"
-                            }
-                            sx={{ fontWeight: 500 }}
+                            sx={{
+                              bgcolor: ACCENT,
+                              color: "#fff",
+                              fontWeight: 500,
+                            }}
                           />
-
-                          {index === 0 && (
-                            <Chip
-                              label="Latest"
-                              size="small"
-                              sx={{
-                                bgcolor: NAVY,
-                                color: "#fff",
-                                fontWeight: 500,
-                              }}
-                            />
-                          )}
-                        </Stack>
-
-                      </TableCell>
-
-                    </TableRow>
-
-                  ))}
-
-                </TableBody>
-
-              </Table>
-
-            </TableContainer>
-
-          </Card>
-
-        </Box>
-
-      </Box>
-
-    </Box>
+                        )}
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Card>
+      </Stack>
+    </Container>
   );
 }

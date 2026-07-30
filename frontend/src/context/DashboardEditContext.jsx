@@ -56,7 +56,7 @@ export function DashboardEditProvider({ children }) {
       {children}
 
       <Dialog open={passwordDialogOpen} onClose={() => setPasswordDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Enter admin password</DialogTitle>
+        <DialogTitle>Administrator Authentication Required</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus

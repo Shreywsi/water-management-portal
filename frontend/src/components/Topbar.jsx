@@ -280,7 +280,7 @@ color: "#1B2A4A",
           }),
     }}
   >
-    {editMode ? "Done Editing" : "Edit Dashboard"}
+    {editMode ? "Exit Management Mode" : "Management Mode"}
   </Button>
 
   <Avatar

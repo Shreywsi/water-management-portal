@@ -3,8 +3,10 @@ import axios from "axios";
 import API_BASE from "../../config/api";
 import { getWells, addWell, updateWell, deleteWell, exportWells } from "../../api/wellApi";
 import {
+  Container,
   Card,
   CardContent,
+  CardHeader,
   Typography,
   TextField,
   Button,
@@ -26,7 +28,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   Checkbox,
   FormControlLabel,
   Dialog,
@@ -42,58 +43,32 @@ import CloseIcon from "@mui/icons-material/Close";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import WaterOutlinedIcon from "@mui/icons-material/WaterOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 
-// Shared accent colour used across the page. Kept as a soft accent
-// (border / text) rather than a solid fill, so it reads as professional
-// without being heavy on the eye.
-const ACCENT = "#1E293B";
-const ACCENT_SOFT_BG = "#F8FAFC"; // very light slate, used behind headers
+import { useDashboardEdit } from "../../context/DashboardEditContext";
+// ^ adjust this relative path to wherever you place DashboardEditContext.jsx
+
+// ---------------------------------------------------------------------
+// SHARED DESIGN TOKENS — identical to GISDataManager.jsx, WaterBalance
+// pages, and AIPrediction.jsx, so every admin page reads as one site.
+// ---------------------------------------------------------------------
+const ACCENT = "#1E293B"; // navy, matches sidebar
+const ACCENT_TINT = `${ACCENT}1A`; // avatar / icon chip backgrounds
+const ACCENT_SOFT_BG = "#F8FAFC"; // very light slate, table headers etc.
 const ACCENT_BORDER = "#E2E8F0"; // hairline border colour
+const CARD_SHADOW = "0 1px 3px rgba(15,23,42,0.06)";
 
-// Consistent card shell: rounded corners + a subtle shadow, no harsh borders
+// Shared card shell used by every card on every admin page.
 const cardSx = {
   borderRadius: 3,
-  border: `1px solid ${ACCENT_BORDER}`,
-  boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
-  overflow: "hidden",
+  borderColor: "divider",
+  boxShadow: CARD_SHADOW,
 };
 
-// Soft section header: light background, coloured bottom rule, dark text.
-function SectionHeader({ title, subtitle, icon, action }) {
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 2,
-        px: 3,
-        py: 2,
-        backgroundColor: ACCENT_SOFT_BG,
-        borderBottom: `2px solid ${ACCENT}`,
-      }}
-    >
-      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
-        {icon && (
-          <Avatar variant="rounded" sx={{ bgcolor: ACCENT, color: "#fff", width: 34, height: 34 }}>
-            {icon}
-          </Avatar>
-        )}
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: ACCENT, letterSpacing: 0.2 }}>
-            {title}
-          </Typography>
-          {subtitle && (
-            <Typography variant="caption" sx={{ color: "text.secondary" }}>
-              {subtitle}
-            </Typography>
-          )}
-        </Box>
-      </Stack>
-      {action}
-    </Box>
-  );
-}
+// Shared table header styling, used by every data table on every page.
+const tableHeadSx = {
+  "& th": { fontWeight: 700, backgroundColor: ACCENT_SOFT_BG, color: ACCENT },
+};
 
 // Small reusable "caption above field" wrapper so every input in the form
 // shares one consistent label style (no floating MUI labels anywhere).
@@ -105,7 +80,34 @@ function FieldLabel({ children }) {
   );
 }
 
+// Small inline notice shown wherever a mutating control is hidden because
+// edit mode is off — same visual as the equivalent notice on the GIS page.
+function EditModeLockedNotice({ label }) {
+  return (
+    <Stack
+      direction="row"
+      spacing={1.5}
+      alignItems="center"
+      sx={{
+        borderStyle: "dashed",
+        borderWidth: 1,
+        borderColor: "divider",
+        borderRadius: 2,
+        px: 3,
+        py: 3,
+        bgcolor: "action.hover",
+        color: "text.secondary",
+      }}
+    >
+      <LockOutlinedIcon fontSize="small" />
+      <Typography variant="body2">Enable edit mode from the top bar to {label}.</Typography>
+    </Stack>
+  );
+}
+
 export default function Locations() {
+  const { editMode, adminPassword } = useDashboardEdit();
+
   const [name, setName] = useState("");
   const [locations, setLocations] = useState([]);
   const [wells, setWells] = useState([]);
@@ -171,9 +173,11 @@ export default function Locations() {
     setSubmitting(true);
 
     try {
-      const res = await axios.post(`${API_BASE}/location/add/`, {
-        name: name.trim(),
-      });
+      const res = await axios.post(
+        `${API_BASE}/location/add/`,
+        { name: name.trim() },
+        { headers: { "X-Admin-Password": adminPassword } }
+      );
 
       if (res.data.success) {
         setMessage("Location added successfully.");
@@ -196,7 +200,9 @@ export default function Locations() {
     if (!window.confirm("Delete this location?")) return;
 
     try {
-      await axios.delete(`${API_BASE}/location/${id}/`);
+      await axios.delete(`${API_BASE}/location/${id}/`, {
+        headers: { "X-Admin-Password": adminPassword },
+      });
       setMessage("Location deleted.");
       setMessageType("success");
       await loadLocations();
@@ -242,18 +248,17 @@ export default function Locations() {
 
     try {
       const payload = {
-          ...wellData,
-          parameters: wellParameters,
+        ...wellData,
+        parameters: wellParameters,
       };
 
       if (editingWellId) {
-          await updateWell(editingWellId, payload);
-          setMessage("Well updated successfully.");
+        await updateWell(editingWellId, payload, adminPassword);
+        setMessage("Well updated successfully.");
       } else {
-          await addWell(payload);
-          setMessage("Well added successfully.");
+        await addWell(payload, adminPassword);
+        setMessage("Well added successfully.");
       }
-
 
       setMessageType("success");
 
@@ -302,7 +307,7 @@ export default function Locations() {
     if (!window.confirm("Delete this well?")) return;
 
     try {
-      await deleteWell(id);
+      await deleteWell(id, adminPassword);
       setMessage("Well deleted.");
       setMessageType("success");
       loadWells();
@@ -313,362 +318,438 @@ export default function Locations() {
     }
   };
 
+  // Export stays open to everyone — no admin password involved.
   const downloadCSV = () => {
     exportWells({
-        location: exportLocation,
-        start_date: exportStartDate,
-        end_date: exportEndDate,
-        parameters: selectAllParameters ? [] : selectedParameters,
+      location: exportLocation,
+      start_date: exportStartDate,
+      end_date: exportEndDate,
+      parameters: selectAllParameters ? [] : selectedParameters,
     });
-};
+  };
 
   const uniqueParameterNames = Array.from(
     new Set(wells.flatMap((well) => well.parameters.map((p) => p.parameter_name)))
   );
 
   return (
-    <Stack spacing={3} sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, mx: "auto" }}>
-      <Box>
-        <Typography variant="h5" fontWeight={700} color={ACCENT}>
-          Manage Locations
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Add locations, log well observations, and export well data.
-        </Typography>
-      </Box>
-
-      {message && (
-        <Alert severity={messageType} onClose={() => setMessage("")}>
-          {message}
-        </Alert>
-      )}
-
-      {/* ---------------- Locations card ---------------- */}
-      <Card sx={cardSx}>
-        <SectionHeader
-          title="Locations"
-          subtitle={`${locations.length} location${locations.length === 1 ? "" : "s"} on record`}
-          icon={<PlaceOutlinedIcon fontSize="small" />}
-        />
-        <CardContent sx={{ p: 3 }}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: locations.length ? 3 : 0 }}>
-            <TextField
-              fullWidth
-              label="Enter Location"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-
-            <Button
-              variant="contained"
-              onClick={addLocation}
-              disabled={submitting}
+    <Container
+      maxWidth="xl"
+      sx={{
+        py: { xs: 3, sm: 4, md: 5 },
+        px: { xs: 2, sm: 3, md: 4 },
+      }}
+    >
+      <Stack spacing={{ xs: 3, md: 4 }}>
+        {/* Page header — same pattern as GIS Data Manager */}
+        <Box>
+          <Stack direction="row" spacing={2} alignItems="center" mb={1}>
+            <Avatar
+              variant="rounded"
               sx={{
-                backgroundColor: ACCENT,
-                px: 4,
-                whiteSpace: "nowrap",
-                boxShadow: "none",
-                "&:hover": { backgroundColor: "#0f172a", boxShadow: "none" },
+                bgcolor: ACCENT_TINT,
+                color: ACCENT,
+                width: 48,
+                height: 48,
               }}
             >
-              {submitting ? "Adding..." : "Add"}
-            </Button>
+              <PlaceOutlinedIcon />
+            </Avatar>
+
+            <Box>
+              <Typography variant="h4" fontWeight={700}>
+                Manage Locations
+              </Typography>
+
+              <Typography color="text.secondary">
+                Add locations, log well observations, and export well data.
+              </Typography>
+            </Box>
           </Stack>
+        </Box>
 
-          {locations.length > 0 && (
-            <List disablePadding>
-              {locations.map((location) => (
-                <ListItem
-                  key={location.id}
-                  divider
-                  secondaryAction={
-                    <IconButton color="error" onClick={() => deleteLocation(location.id)}>
-                      <DeleteIcon />
-                    </IconButton>
-                  }
+        {message && (
+          <Alert severity={messageType} onClose={() => setMessage("")}>
+            {message}
+          </Alert>
+        )}
+
+        {/* ---------------- Locations card ---------------- */}
+        <Card variant="outlined" sx={cardSx}>
+          <CardHeader
+            avatar={
+              <Avatar sx={{ bgcolor: ACCENT_TINT, color: ACCENT }}>
+                <PlaceOutlinedIcon fontSize="small" />
+              </Avatar>
+            }
+            title={
+              <Typography variant="h6" fontWeight={600}>
+                Locations
+              </Typography>
+            }
+            subheader={`${locations.length} location${locations.length === 1 ? "" : "s"} on record`}
+            sx={{ pb: 2, alignItems: "center" }}
+          />
+
+          <CardContent>
+            {editMode ? (
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: locations.length ? 3 : 0 }}>
+                <TextField fullWidth label="Enter Location" value={name} onChange={(e) => setName(e.target.value)} />
+
+                <Button
+                  variant="contained"
+                  onClick={addLocation}
+                  disabled={submitting}
+                  disableElevation
+                  sx={{
+                    bgcolor: ACCENT,
+                    px: 4,
+                    whiteSpace: "nowrap",
+                    "&:hover": { bgcolor: "#101A30" },
+                  }}
                 >
-                  <ListItemText primary={location.name} />
-                </ListItem>
-              ))}
-            </List>
-          )}
-        </CardContent>
-      </Card>
+                  {submitting ? "Adding..." : "Add"}
+                </Button>
+              </Stack>
+            ) : (
+              <Box sx={{ mb: locations.length ? 3 : 0 }}>
+                <EditModeLockedNotice label="add a location" />
+              </Box>
+            )}
 
-      {/* ---------------- Well form card ---------------- */}
-      <Card sx={cardSx}>
-        <SectionHeader
-          title={editingWellId ? "Edit Well" : "Add Well"}
-          subtitle="Record an observation for a well"
-          icon={<WaterOutlinedIcon fontSize="small" />}
-        />
-        <CardContent sx={{ p: 3 }}>
-          {/* Form row 1: Location / Well ID / Observation Date */}
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                md: "repeat(3, 1fr)",
-              },
-              gap: 2,
-              mb: 2,
-            }}
-          >
-            <Box>
-              <FieldLabel>Location</FieldLabel>
-              <FormControl fullWidth sx={{ minWidth: 0 }}>
-                <Select
-                  displayEmpty
-                  value={wellData.location}
-                  onChange={(e) => handleWellChange("location", e.target.value)}
-                >
-                  <MenuItem value="" disabled>
-                    Select a location
-                  </MenuItem>
-                  {locations.map((loc) => (
-                    <MenuItem key={loc.id} value={loc.id}>
-                      {loc.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Box>
+            {locations.length > 0 && (
+              <List disablePadding>
+                {locations.map((location) => (
+                  <ListItem
+                    key={location.id}
+                    divider
+                    secondaryAction={
+                      editMode && (
+                        <IconButton color="error" onClick={() => deleteLocation(location.id)}>
+                          <DeleteIcon />
+                        </IconButton>
+                      )
+                    }
+                  >
+                    <ListItemText primary={location.name} />
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </CardContent>
+        </Card>
 
-            <Box>
-              <FieldLabel>Well ID</FieldLabel>
-              <TextField
-                fullWidth
-                placeholder="e.g. W001"
-                value={wellData.well_id}
-                onChange={(e) => handleWellChange("well_id", e.target.value)}
-              />
-            </Box>
-
-            <Box>
-              <FieldLabel>Observation Date</FieldLabel>
-              <TextField
-                fullWidth
-                type="date"
-                value={wellData.observation_date}
-                onChange={(e) => handleWellChange("observation_date", e.target.value)}
-              />
-            </Box>
-          </Box>
-
-          {/* Form row 2: Latitude / Longitude */}
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
-              gap: 2,
-              mb: 3,
-            }}
-          >
-            <Box>
-              <FieldLabel>Latitude</FieldLabel>
-              <TextField
-                fullWidth
-                value={wellData.latitude}
-                onChange={(e) => handleWellChange("latitude", e.target.value)}
-              />
-            </Box>
-
-            <Box>
-              <FieldLabel>Longitude</FieldLabel>
-              <TextField
-                fullWidth
-                value={wellData.longitude}
-                onChange={(e) => handleWellChange("longitude", e.target.value)}
-              />
-            </Box>
-          </Box>
-
-          <Divider sx={{ mb: 3 }} />
-
-          <Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={{ mb: 1.5 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: ACCENT }}>
-              Parameters
-            </Typography>
-            <Typography variant="caption" sx={{ color: "text.secondary" }}>
-              No fixed list — add whatever applies to this well
-            </Typography>
-          </Stack>
-
-          <Stack spacing={2} sx={{ mb: 2 }}>
-            {wellParameters.map((row, index) => (
+        {/* ---------------- Well form card — add/edit only, edit mode required ---------------- */}
+        {editMode ? (
+          <Card variant="outlined" sx={cardSx}>
+            <CardHeader
+              avatar={
+                <Avatar sx={{ bgcolor: ACCENT_TINT, color: ACCENT }}>
+                  <WaterOutlinedIcon fontSize="small" />
+                </Avatar>
+              }
+              title={
+                <Typography variant="h6" fontWeight={600}>
+                  {editingWellId ? "Edit Well" : "Add Well"}
+                </Typography>
+              }
+              subheader="Record an observation for a well"
+              sx={{ pb: 2, alignItems: "center" }}
+            />
+            <CardContent>
+              {/* Form row 1: Location / Well ID / Observation Date */}
               <Box
-                key={index}
                 sx={{
                   display: "grid",
-                  gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr auto" },
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    md: "repeat(3, 1fr)",
+                  },
                   gap: 2,
-                  alignItems: "end",
+                  mb: 2,
                 }}
               >
                 <Box>
-                  <FieldLabel>Parameter Name</FieldLabel>
+                  <FieldLabel>Location</FieldLabel>
+                  <FormControl fullWidth sx={{ minWidth: 0 }}>
+                    <Select
+                      displayEmpty
+                      value={wellData.location}
+                      onChange={(e) => handleWellChange("location", e.target.value)}
+                    >
+                      <MenuItem value="" disabled>
+                        Select a location
+                      </MenuItem>
+                      {locations.map((loc) => (
+                        <MenuItem key={loc.id} value={loc.id}>
+                          {loc.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+
+                <Box>
+                  <FieldLabel>Well ID</FieldLabel>
                   <TextField
                     fullWidth
-                    placeholder="e.g. Recharge from rainfall"
-                    value={row.parameter_name}
-                    onChange={(e) => updateParameterRow(index, "parameter_name", e.target.value)}
+                    placeholder="e.g. W001"
+                    value={wellData.well_id}
+                    onChange={(e) => handleWellChange("well_id", e.target.value)}
                   />
                 </Box>
 
                 <Box>
-                  <FieldLabel>Value</FieldLabel>
+                  <FieldLabel>Observation Date</FieldLabel>
                   <TextField
                     fullWidth
-                    placeholder="e.g. 150"
-                    value={row.parameter_value}
-                    onChange={(e) => updateParameterRow(index, "parameter_value", e.target.value)}
+                    type="date"
+                    value={wellData.observation_date}
+                    onChange={(e) => handleWellChange("observation_date", e.target.value)}
+                  />
+                </Box>
+              </Box>
+
+              {/* Form row 2: Latitude / Longitude */}
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+                  gap: 2,
+                  mb: 3,
+                }}
+              >
+                <Box>
+                  <FieldLabel>Latitude</FieldLabel>
+                  <TextField
+                    fullWidth
+                    value={wellData.latitude}
+                    onChange={(e) => handleWellChange("latitude", e.target.value)}
                   />
                 </Box>
 
-                <Button
-                  color="error"
-                  variant="outlined"
-                  onClick={() => removeParameterRow(index)}
-                  sx={{ height: "56px", minWidth: { xs: "100%", sm: "110px" } }}
-                >
-                  Remove
-                </Button>
+                <Box>
+                  <FieldLabel>Longitude</FieldLabel>
+                  <TextField
+                    fullWidth
+                    value={wellData.longitude}
+                    onChange={(e) => handleWellChange("longitude", e.target.value)}
+                  />
+                </Box>
               </Box>
-            ))}
 
-            {wellParameters.length === 0 && (
-              <Typography variant="body2" sx={{ color: "text.secondary", fontStyle: "italic" }}>
-                No parameters added yet.
-              </Typography>
-            )}
-          </Stack>
+              <Divider sx={{ mb: 3 }} />
 
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="space-between">
-            <Button
-              variant="outlined"
-              onClick={addParameterRow}
-              sx={{
-                borderColor: ACCENT,
-                color: ACCENT,
-                "&:hover": { borderColor: "#0f172a", backgroundColor: "rgba(30,41,59,0.04)" },
-              }}
-            >
-              Add Parameter
-            </Button>
+              <Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={{ mb: 1.5 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: ACCENT }}>
+                  Parameters
+                </Typography>
+                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  No fixed list — add whatever applies to this well
+                </Typography>
+              </Stack>
 
-            <Button
-              variant="contained"
-              onClick={saveWell}
-              sx={{
-                backgroundColor: ACCENT,
-                boxShadow: "none",
-                px: 4,
-                "&:hover": { backgroundColor: "#0f172a", boxShadow: "none" },
-              }}
-            >
-              {editingWellId ? "Update Well" : "Save Well"}
-            </Button>
-          </Stack>
-        </CardContent>
-      </Card>
+              <Stack spacing={2} sx={{ mb: 2 }}>
+                {wellParameters.map((row, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr auto" },
+                      gap: 2,
+                      alignItems: "end",
+                    }}
+                  >
+                    <Box>
+                      <FieldLabel>Parameter Name</FieldLabel>
+                      <TextField
+                        fullWidth
+                        placeholder="e.g. Recharge from rainfall"
+                        value={row.parameter_name}
+                        onChange={(e) => updateParameterRow(index, "parameter_name", e.target.value)}
+                      />
+                    </Box>
 
-      {/* ---------------- Existing wells card ---------------- */}
-      <Card sx={cardSx}>
-        <SectionHeader
-          title="Existing Wells"
-          subtitle={`${wells.length} well record${wells.length === 1 ? "" : "s"}`}
-          icon={<WaterOutlinedIcon fontSize="small" />}
-          action={
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<DownloadIcon />}
-              onClick={() => setExportDialogOpen(true)}
-              sx={{
-                borderColor: ACCENT,
-                color: ACCENT,
-                fontWeight: 600,
-                whiteSpace: "nowrap",
-                "&:hover": { borderColor: "#0f172a", backgroundColor: "rgba(30,41,59,0.04)" },
-              }}
-            >
-              Export Data
-            </Button>
-          }
-        />
-        <CardContent sx={{ p: 0 }}>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow sx={{ "& th": { fontWeight: 700, backgroundColor: ACCENT_SOFT_BG, color: ACCENT } }}>
-                  <TableCell>Well ID</TableCell>
-                  <TableCell>Location</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Latitude</TableCell>
-                  <TableCell>Longitude</TableCell>
-                  <TableCell>Parameters</TableCell>
-                  <TableCell align="right" />
-                </TableRow>
-              </TableHead>
+                    <Box>
+                      <FieldLabel>Value</FieldLabel>
+                      <TextField
+                        fullWidth
+                        placeholder="e.g. 150"
+                        value={row.parameter_value}
+                        onChange={(e) => updateParameterRow(index, "parameter_value", e.target.value)}
+                      />
+                    </Box>
 
-              <TableBody>
-                {wells.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 5 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        No wells recorded yet.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-
-                {wells.map((well) => (
-                  <TableRow key={well.id} hover>
-                    <TableCell>{well.well_id}</TableCell>
-
-                    <TableCell>
-                      {locations.find((l) => l.id === well.location)?.name}
-                    </TableCell>
-
-                    <TableCell>{well.observation_date}</TableCell>
-
-                    <TableCell>{well.latitude}</TableCell>
-
-                    <TableCell>{well.longitude}</TableCell>
-
-                    <TableCell>
-                      {well.parameters.map((p) => (
-                        <div key={p.id}>
-                          {p.parameter_name}: {p.parameter_value}
-                        </div>
-                      ))}
-                    </TableCell>
-
-                    <TableCell align="right">
-                      <IconButton
-                        color="primary"
-                        onClick={() => editWell(well)}
-                      >
-                        <EditIcon />
-                      </IconButton>
-
-                      <IconButton
-                        color="error"
-                        onClick={() => removeWell(well.id)}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
+                    <Button
+                      color="error"
+                      variant="outlined"
+                      onClick={() => removeParameterRow(index)}
+                      sx={{ height: "56px", minWidth: { xs: "100%", sm: "110px" } }}
+                    >
+                      Remove
+                    </Button>
+                  </Box>
                 ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
 
-      {/* ---------------- Export dialog ---------------- */}
+                {wellParameters.length === 0 && (
+                  <Typography variant="body2" sx={{ color: "text.secondary", fontStyle: "italic" }}>
+                    No parameters added yet.
+                  </Typography>
+                )}
+              </Stack>
+
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="space-between">
+                <Button
+                  variant="outlined"
+                  onClick={addParameterRow}
+                  sx={{
+                    borderColor: ACCENT,
+                    color: ACCENT,
+                    "&:hover": { borderColor: "#101A30", bgcolor: `${ACCENT}0D` },
+                  }}
+                >
+                  Add Parameter
+                </Button>
+
+                <Button
+                  variant="contained"
+                  onClick={saveWell}
+                  disableElevation
+                  sx={{
+                    bgcolor: ACCENT,
+                    px: 4,
+                    "&:hover": { bgcolor: "#101A30" },
+                  }}
+                >
+                  {editingWellId ? "Update Well" : "Save Well"}
+                </Button>
+              </Stack>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card variant="outlined" sx={cardSx}>
+            <CardHeader
+              avatar={
+                <Avatar sx={{ bgcolor: ACCENT_TINT, color: ACCENT }}>
+                  <WaterOutlinedIcon fontSize="small" />
+                </Avatar>
+              }
+              title={
+                <Typography variant="h6" fontWeight={600}>
+                  Add Well
+                </Typography>
+              }
+              subheader="Record an observation for a well"
+              sx={{ pb: 2, alignItems: "center" }}
+            />
+            <CardContent>
+              <EditModeLockedNotice label="add or edit a well" />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ---------------- Existing wells card ---------------- */}
+        <Card variant="outlined" sx={cardSx}>
+          <CardHeader
+            avatar={
+              <Avatar sx={{ bgcolor: ACCENT_TINT, color: ACCENT }}>
+                <WaterOutlinedIcon fontSize="small" />
+              </Avatar>
+            }
+            title={
+              <Typography variant="h6" fontWeight={600}>
+                Existing Wells
+              </Typography>
+            }
+            subheader={`${wells.length} well record${wells.length === 1 ? "" : "s"}`}
+            action={
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<DownloadIcon />}
+                onClick={() => setExportDialogOpen(true)}
+                sx={{
+                  borderColor: ACCENT,
+                  color: ACCENT,
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  "&:hover": { borderColor: "#101A30", bgcolor: `${ACCENT}0D` },
+                }}
+              >
+                Export Data
+              </Button>
+            }
+            sx={{ pb: 2, alignItems: "center" }}
+          />
+          <CardContent sx={{ p: 0 }}>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow sx={tableHeadSx}>
+                    <TableCell>Well ID</TableCell>
+                    <TableCell>Location</TableCell>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Latitude</TableCell>
+                    <TableCell>Longitude</TableCell>
+                    <TableCell>Parameters</TableCell>
+                    <TableCell align="right" />
+                  </TableRow>
+                </TableHead>
+
+                <TableBody>
+                  {wells.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center" sx={{ py: 5 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          No wells recorded yet.
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+
+                  {wells.map((well) => (
+                    <TableRow key={well.id} hover>
+                      <TableCell>{well.well_id}</TableCell>
+
+                      <TableCell>{locations.find((l) => l.id === well.location)?.name}</TableCell>
+
+                      <TableCell>{well.observation_date}</TableCell>
+
+                      <TableCell>{well.latitude}</TableCell>
+
+                      <TableCell>{well.longitude}</TableCell>
+
+                      <TableCell>
+                        {well.parameters.map((p) => (
+                          <div key={p.id}>
+                            {p.parameter_name}: {p.parameter_value}
+                          </div>
+                        ))}
+                      </TableCell>
+
+                      <TableCell align="right">
+                        {editMode && (
+                          <>
+                            <IconButton color="primary" onClick={() => editWell(well)}>
+                              <EditIcon />
+                            </IconButton>
+
+                            <IconButton color="error" onClick={() => removeWell(well.id)}>
+                              <DeleteIcon />
+                            </IconButton>
+                          </>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
+      </Stack>
+
+      {/* ---------------- Export dialog — open to everyone, no admin password ---------------- */}
       <Dialog
         open={exportDialogOpen}
         onClose={() => setExportDialogOpen(false)}
@@ -703,11 +784,7 @@ export default function Locations() {
           <Stack spacing={2.5}>
             <FormControl fullWidth>
               <InputLabel>Export Type</InputLabel>
-              <Select
-                value={exportType}
-                label="Export Type"
-                onChange={(e) => setExportType(e.target.value)}
-              >
+              <Select value={exportType} label="Export Type" onChange={(e) => setExportType(e.target.value)}>
                 <MenuItem value="research">Research Dataset (Wide CSV)</MenuItem>
                 <MenuItem value="database">PostgreSQL Database Export (ZIP)</MenuItem>
               </Select>
@@ -716,11 +793,7 @@ export default function Locations() {
             <Box>
               <FieldLabel>Location</FieldLabel>
               <FormControl fullWidth>
-                <Select
-                  displayEmpty
-                  value={exportLocation}
-                  onChange={(e) => setExportLocation(e.target.value)}
-                >
+                <Select displayEmpty value={exportLocation} onChange={(e) => setExportLocation(e.target.value)}>
                   <MenuItem value="">All Locations</MenuItem>
                   {locations.map((loc) => (
                     <MenuItem key={loc.id} value={loc.id}>
@@ -799,23 +872,23 @@ export default function Locations() {
           <Button
             variant="contained"
             startIcon={<DownloadIcon />}
+            disableElevation
             onClick={() => {
               downloadCSV();
               setExportDialogOpen(false);
             }}
             sx={{
-              backgroundColor: ACCENT,
-              boxShadow: "none",
+              bgcolor: ACCENT,
               textTransform: "none",
               fontWeight: 600,
               px: 3,
-              "&:hover": { backgroundColor: "#0f172a", boxShadow: "none" },
+              "&:hover": { bgcolor: "#101A30" },
             }}
           >
             Export
           </Button>
         </DialogActions>
       </Dialog>
-    </Stack>
+    </Container>
   );
 }

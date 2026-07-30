@@ -75,8 +75,12 @@ function AppRoutes() {
 
         <Route path="/crp" element={<CRPDashboard />} />
         <Route
-            path="/admin/water-history"
-            element={<WaterBalanceHistory />}
+          path="/admin/water-history"
+          element={
+            <AdminLayout>
+              <WaterBalanceHistory />
+            </AdminLayout>
+          }
         />
 
         <Route path="/signup" element={<SignupPage />} />
