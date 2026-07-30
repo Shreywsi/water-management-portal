@@ -3,33 +3,26 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import PublicLayout from "../layouts/PublicLayout";
 import {
-  Box, Button, Typography, TextField, InputAdornment, Paper
+  Box, Button, Typography, TextField, InputAdornment
 } from "@mui/material";
 import PersonIcon from "@mui/icons-material/Person";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
-//import GrassOutlinedIcon from "@mui/icons-material/GrassOutlined";
-import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
-import ScienceOutlinedIcon from "@mui/icons-material/ScienceOutlined";
 import WaterDropOutlinedIcon from "@mui/icons-material/WaterDropOutlined";
 import AccountBalanceOutlinedIcon from "@mui/icons-material/AccountBalanceOutlined";
 
 import API_BASE from "../config/api";
 
-const PANEL   = "#1E293B";
+/* Original palette, unchanged — just used more deliberately */
+const PANEL      = "#1E293B";
 const PANEL_DARK = "#152238";
-const ACCENT  = "#2A3F6F";
-const FORM_BG = "#fdf8f2";
-
-const ROLES = [
-  { value: "admin",      label: "Admin",      Icon: ShieldOutlinedIcon },
-  { value: "crp",        label: "CRP",        Icon: GroupsOutlinedIcon },
-];
+const ACCENT     = "#2A3F6F";
+const ACCENT_LT  = "#3B5488"; // lighter tint of ACCENT, for hover/glow only
+const FORM_BG    = "#fdf8f2";
 
 const STATS = [
   { num: "210+", label: "Reservoirs" },
   { num: "33",   label: "Districts"  },
-  { num: "5M+",  label: "Farmers"   },
+  { num: "5M+",  label: "Farmers"    },
 ];
 
 function LoginPage() {
@@ -55,11 +48,11 @@ function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ username, password}),
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await response.json();
-      
+
       if (!data.success) {
         setError(data.error || "Login failed.");
         setLoading(false);
@@ -89,70 +82,89 @@ function LoginPage() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          bgcolor: PANEL,
+          background: `linear-gradient(150deg, ${PANEL} 0%, ${PANEL_DARK} 100%)`,
           p: 5,
           position: "relative",
           overflow: "hidden",
         }}>
 
-          {/* Subtle background circles for depth */}
+          {/* Layered rings for depth — same accent family, no new hues */}
           <Box sx={{
-            position: "absolute", width: 320, height: 320,
-            borderRadius: "50%", border: "1px solid rgba(255,255,255,0.05)",
+            position: "absolute", width: 420, height: 420,
+            borderRadius: "50%", border: `1px solid ${ACCENT_LT}22`,
+            top: -140, right: -140, pointerEvents: "none",
+          }} />
+          <Box sx={{
+            position: "absolute", width: 300, height: 300,
+            borderRadius: "50%", border: `1px solid ${ACCENT_LT}33`,
             top: -80, right: -80, pointerEvents: "none",
           }} />
           <Box sx={{
-            position: "absolute", width: 220, height: 220,
-            borderRadius: "50%", border: "1px solid rgba(255,255,255,0.05)",
-            bottom: -60, left: -60, pointerEvents: "none",
+            position: "absolute", width: 260, height: 260,
+            borderRadius: "50%", border: `1px solid ${ACCENT_LT}22`,
+            bottom: -90, left: -90, pointerEvents: "none",
           }} />
 
-          {/* Logo circle */}
+          {/* Logo */}
           <Box sx={{
-            width: 76, height: 76, borderRadius: "50%",
-            bgcolor: "rgba(255,255,255,0.10)",
-            border: "1.5px solid rgba(255,255,255,0.20)",
+            width: 80, height: 80, borderRadius: "20px",
+            bgcolor: `${ACCENT_LT}26`,
+            border: `1px solid ${ACCENT_LT}55`,
             display: "flex", alignItems: "center", justifyContent: "center",
-            mb: 2.5,
+            mb: 3, position: "relative", zIndex: 1,
+            boxShadow: `0 0 40px ${ACCENT}55`,
           }}>
-            <WaterDropOutlinedIcon sx={{ color: "#fff", fontSize: 34 }} />
+            <WaterDropOutlinedIcon sx={{ color: "#fff", fontSize: 36 }} />
           </Box>
 
           <Typography variant="h5" sx={{
-            color: "#fff", fontWeight: 500,
-            textAlign: "center", lineHeight: 1.4, mb: 1,
+            color: "#fff", fontWeight: 600,
+            textAlign: "center", lineHeight: 1.35, mb: 1,
+            letterSpacing: "0.01em",
+            position: "relative", zIndex: 1,
           }}>
-             Water<br />Management Portal
+            AI-Enabled<br />Water Management Platform
+             
           </Typography>
 
           <Box sx={{
-            width: 40, height: 2,
-            bgcolor: "rgba(255,255,255,0.20)",
+            width: 44, height: 3,
+            bgcolor: ACCENT_LT,
             borderRadius: 1, my: 2,
+            position: "relative", zIndex: 1,
           }} />
 
           <Typography sx={{
-            color: "rgba(255,255,255,0.55)",
-            fontSize: 13, textAlign: "center", lineHeight: 1.8,
-            maxWidth: 280, mb: 5,
+            color: "rgba(255,255,255,0.6)",
+            fontSize: 13.5, textAlign: "center", lineHeight: 1.85,
+            maxWidth: 290, mb: 5,
+            position: "relative", zIndex: 1,
           }}>
-            Integrated platform for water resource monitoring, allocation, and sustainable management across Gujarat
+            Integrated platform for water resource monitoring, allocation,
+            and sustainable management across Gujarat
           </Typography>
 
           {/* Stats row */}
           <Box sx={{
             display: "flex", gap: 0,
-            border: "0.5px solid rgba(255,255,255,0.12)",
-            borderRadius: 2, overflow: "hidden", width: "100%", maxWidth: 300,
+            border: `1px solid ${ACCENT_LT}44`,
+            borderRadius: 2, overflow: "hidden", width: "100%", maxWidth: 310,
+            position: "relative", zIndex: 1,
+            boxShadow: "0 12px 32px -12px rgba(0,0,0,0.4)",
           }}>
             {STATS.map(({ num, label }, i) => (
               <Box key={label} sx={{
-                flex: 1, textAlign: "center", py: 1.5,
-                borderRight: i < STATS.length - 1 ? "0.5px solid rgba(255,255,255,0.12)" : "none",
-                bgcolor: "rgba(255,255,255,0.05)",
+                flex: 1, textAlign: "center", py: 1.75,
+                borderRight: i < STATS.length - 1 ? `1px solid ${ACCENT_LT}44` : "none",
+                bgcolor: `${ACCENT}66`,
               }}>
-                <Typography sx={{ color: "#fff", fontSize: 18, fontWeight: 500 }}>{num}</Typography>
-                <Typography sx={{ color: "rgba(255,255,255,0.45)", fontSize: 10, mt: 0.25, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <Typography sx={{ color: "#fff", fontSize: 19, fontWeight: 600 }}>
+                  {num}
+                </Typography>
+                <Typography sx={{
+                  color: "rgba(255,255,255,0.5)", fontSize: 10, mt: 0.4,
+                  textTransform: "uppercase", letterSpacing: "0.07em",
+                }}>
                   {label}
                 </Typography>
               </Box>
@@ -162,12 +174,9 @@ function LoginPage() {
           {/* Government badge */}
           <Box sx={{
             position: "absolute", bottom: 24,
-            display: "flex", alignItems: "center", gap: 0.75,
+            display: "flex", alignItems: "center", gap: 0.75, zIndex: 1,
           }}>
-            <AccountBalanceOutlinedIcon sx={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }} />
-            <Typography sx={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
-              Water Resources Department
-            </Typography>
+            
           </Box>
         </Box>
 
@@ -178,11 +187,18 @@ function LoginPage() {
           bgcolor: FORM_BG,
           p: { xs: 2, sm: 4 },
         }}>
-          <Box sx={{ width: "100%", maxWidth: 380 }}>
+          <Box sx={{
+            width: "100%", maxWidth: 380,
+            bgcolor: "#fff",
+            borderRadius: 3,
+            border: "1px solid #eee6d8",
+            boxShadow: "0 20px 45px -20px rgba(30,41,59,0.22)",
+            p: { xs: 3, sm: 4.5 },
+          }}>
 
             {/* Header */}
             <Box sx={{ mb: 3.5 }}>
-              <Typography variant="h5" sx={{ fontWeight: 500, color: "#1a1a2e", mb: 0.5 }}>
+              <Typography variant="h5" sx={{ fontWeight: 600, color: "#1a1a2e", mb: 0.5 }}>
                 Sign in to your account
               </Typography>
               <Typography variant="body2" sx={{ color: "#6b7280" }}>
@@ -222,7 +238,7 @@ function LoginPage() {
               sx={{
                 "& .MuiOutlinedInput-root": {
                   bgcolor: "#fff",
-                  "& .Mui-focused fieldset": { borderColor: ACCENT },
+                  "&.Mui-focused fieldset": { borderColor: ACCENT },
                 },
                 "& .MuiInputLabel-root.Mui-focused": { color: ACCENT },
               }}
@@ -244,39 +260,45 @@ function LoginPage() {
               variant="contained"
               fullWidth
               size="large"
+              disabled={loading}
               onClick={handleLogin}
               sx={{
                 mt: 3, borderRadius: 2,
-                textTransform: "none", fontSize: 15,
+                textTransform: "none", fontSize: 15, fontWeight: 600,
                 bgcolor: PANEL,
                 "&:hover": { bgcolor: PANEL_DARK },
                 "&:active": { bgcolor: PANEL_DARK },
-                boxShadow: "none",
+                boxShadow: `0 8px 20px -8px ${ACCENT}88`,
                 py: 1.4,
               }}
             >
-              Sign in
+              {loading ? "Signing in…" : "Sign in"}
             </Button>
-            <Typography sx={{ mt: 2, textAlign: "center" }}>
+
+            <Typography sx={{ mt: 2, textAlign: "center", color: "#6b7280", fontSize: 14 }}>
               New user?
               <Button
                 variant="text"
                 onClick={() => navigate("/signup")}
+                sx={{ color: ACCENT, fontWeight: 600, textTransform: "none" }}
               >
                 Create Account
               </Button>
             </Typography>
 
-            {/* Footer note */}
+            {/* Footer note + developer credit */}
             <Box sx={{
-              display: "flex", alignItems: "center", justifyContent: "center",
+              display: "flex", flexDirection: "column", alignItems: "center",
               gap: 0.75, mt: 3, pt: 2,
-              borderTop: "0.5px solid #e5e0d8",
+              borderTop: "1px solid #e5e0d8",
             }}>
-              <AccountBalanceOutlinedIcon sx={{ fontSize: 13, color: "#9ca3af" }} />
-              <Typography variant="caption" sx={{ color: "#9ca3af" }}>
-                Water Resources Department
-              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                <AccountBalanceOutlinedIcon sx={{ fontSize: 13, color: "#9ca3af" }} />
+                <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+                  Water Resources Department
+                </Typography>
+              </Box>
+              
             </Box>
 
           </Box>
