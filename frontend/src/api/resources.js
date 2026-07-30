@@ -13,10 +13,10 @@ export async function fetchFolders() {
   return handleResponse(response);
 }
 
-export async function createFolder(name, description) {
+export async function createFolder(name, description, password) {
   const response = await apiFetch("/resources/folders/", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-Admin-Password": password },
     body: JSON.stringify({ name, description }),
   });
   return handleResponse(response);
@@ -27,14 +27,15 @@ export async function fetchFolderDetail(folderId) {
   return handleResponse(response);
 }
 
-export async function deleteFolder(folderId) {
+export async function deleteFolder(folderId, password) {
   const response = await apiFetch(`/resources/folders/${folderId}/`, {
     method: "DELETE",
+    headers: { "X-Admin-Password": password },
   });
   return handleResponse(response);
 }
 
-export async function uploadFilesToFolder(folderId, files, relativePaths) {
+export async function uploadFilesToFolder(folderId, files, relativePaths, password) {
   const formData = new FormData();
   files.forEach((file) => formData.append("files", file));
   if (relativePaths) {
@@ -42,14 +43,16 @@ export async function uploadFilesToFolder(folderId, files, relativePaths) {
   }
   const response = await apiFetch(`/resources/folders/${folderId}/upload/`, {
     method: "POST",
+    headers: { "X-Admin-Password": password },
     body: formData,
   });
   return handleResponse(response);
 }
 
-export async function deleteFile(fileId) {
+export async function deleteFile(fileId, password) {
   const response = await apiFetch(`/resources/files/${fileId}/`, {
     method: "DELETE",
+    headers: { "X-Admin-Password": password },
   });
   return handleResponse(response);
 }

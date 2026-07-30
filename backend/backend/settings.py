@@ -101,6 +101,7 @@ INSTALLED_APPS = [
     'ml',
     'corsheaders',
     'django_celery_results',
+    
 ]
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [

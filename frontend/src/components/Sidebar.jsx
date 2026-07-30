@@ -85,7 +85,7 @@ export default function Sidebar() {
           fontWeight: "bold",
         }}
       >
-        Water Portal
+        AI-Enabled Water Portal
       </Typography>
 
       <List sx={{ flexGrow: 1 }}>

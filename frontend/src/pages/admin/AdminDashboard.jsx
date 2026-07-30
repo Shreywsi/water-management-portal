@@ -138,7 +138,7 @@ export default function AdminDashboard() {
 
             <Box>
               <Typography variant="h4" fontWeight={700} sx={{ letterSpacing: -0.3 }}>
-                Welcome to the Water Management Portal
+                Welcome to the AI-Enabled Water Management Portal
               </Typography>
               <Typography sx={{ mt: 0.75, color: "rgba(255,255,255,0.82)" }}>
                 Manage GIS layers, groundwater models, and water resource

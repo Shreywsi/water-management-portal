@@ -232,7 +232,7 @@ export default function Topbar({
       lineHeight: 1,
     }}
   >
-    Water Management Portal
+    AI-Enabled Water Management Platform
   </Typography>
 
   <Typography

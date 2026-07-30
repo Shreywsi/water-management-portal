@@ -11,7 +11,7 @@ import {
 } from "@mui/material";
 import { createFolder } from "../../api/resources";
 
-export default function CreateFolderDialog({ open, onClose, onCreated }) {
+export default function CreateFolderDialog({ open, onClose, onCreated, adminPassword }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
@@ -32,7 +32,7 @@ export default function CreateFolderDialog({ open, onClose, onCreated }) {
     setSubmitting(true);
     setError("");
     try {
-      const folder = await createFolder(name.trim(), description.trim());
+      const folder = await createFolder(name.trim(), description.trim(), adminPassword);
       onCreated(folder);
       handleClose();
     } catch (err) {

@@ -22,12 +22,15 @@ import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import { fetchFolderDetail, deleteFile, downloadFile, deleteFolder } from "../../api/resources";
 import { getFileIcon, formatBytes } from "../../utils/fileIcons";
 import UploadFilesDialog from "./UploadFilesDialog";
+import { useDashboardEdit } from "../../context/DashboardEditContext";
+// ^ adjust this path if DashboardEditContext lives somewhere else relative to this file
 
 export default function FolderDetailDialog({ open, folderId, onClose, onFolderDeleted }) {
   const [folder, setFolder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
+  const { editMode, adminPassword, requestEditToggle } = useDashboardEdit();
 
   const loadFolder = async () => {
     if (!folderId) return;
@@ -57,25 +60,33 @@ export default function FolderDetailDialog({ open, folderId, onClose, onFolderDe
   };
 
   const handleDeleteFile = async (fileId) => {
-    if (!window.confirm("Delete this file?")) return;
-    try {
-      await deleteFile(fileId);
-      await loadFolder();
-    } catch (err) {
-      setError("Unable to delete file.");
-    }
-  };
+  if (!editMode) {
+    requestEditToggle();
+    return;
+  }
+  if (!window.confirm("Delete this file?")) return;
+  try {
+    await deleteFile(fileId, adminPassword);
+    await loadFolder();
+  } catch (err) {
+    setError("Unable to delete file.");
+  }
+};
 
-  const handleDeleteFolder = async () => {
-    if (!window.confirm(`Delete the entire folder "${folder?.name}" and all its files?`)) return;
-    try {
-      await deleteFolder(folderId);
-      onFolderDeleted();
-      onClose();
-    } catch (err) {
-      setError("Unable to delete folder.");
-    }
-  };
+const handleDeleteFolder = async () => {
+  if (!editMode) {
+    requestEditToggle();
+    return;
+  }
+  if (!window.confirm(`Delete the entire folder "${folder?.name}" and all its files?`)) return;
+  try {
+    await deleteFolder(folderId, adminPassword);
+    onFolderDeleted();
+    onClose();
+  } catch (err) {
+    setError("Unable to delete folder.");
+  }
+};
 
   return (
     <>
@@ -112,9 +123,11 @@ export default function FolderDetailDialog({ open, folderId, onClose, onFolderDe
                             <IconButton size="small" onClick={() => handleDownload(file)}>
                               <DownloadOutlinedIcon fontSize="small" />
                             </IconButton>
-                            <IconButton size="small" color="error" onClick={() => handleDeleteFile(file.id)}>
-                              <DeleteOutlineIcon fontSize="small" />
-                            </IconButton>
+                            {editMode && (
+                              <IconButton size="small" color="error" onClick={() => handleDeleteFile(file.id)}>
+                                <DeleteOutlineIcon fontSize="small" />
+                              </IconButton>
+                            )}
                           </Stack>
                         }
                       >
@@ -133,25 +146,30 @@ export default function FolderDetailDialog({ open, folderId, onClose, onFolderDe
             </>
           )}
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 1.5, justifyContent: "space-between" }}>
-          <Button color="error" onClick={handleDeleteFolder}>
-            Delete Folder
-          </Button>
+        <DialogActions sx={{ px: 3, py: 1.5, justifyContent: editMode ? "space-between" : "flex-end" }}>
+          {editMode && (
+            <Button color="error" onClick={handleDeleteFolder}>
+              Delete Folder
+            </Button>
+          )}
           <Stack direction="row" spacing={1}>
             <Button onClick={onClose}>Close</Button>
-            <Button variant="contained" startIcon={<AddOutlinedIcon />} onClick={() => setUploadOpen(true)}>
-              Upload
-            </Button>
+            {editMode && (
+              <Button variant="contained" startIcon={<AddOutlinedIcon />} onClick={() => setUploadOpen(true)}>
+                Upload
+              </Button>
+            )}
           </Stack>
         </DialogActions>
       </Dialog>
 
-      <UploadFilesDialog
-        open={uploadOpen}
-        onClose={() => setUploadOpen(false)}
-        folderId={folderId}
-        onUploaded={loadFolder}
-      />
+     <UploadFilesDialog
+  open={uploadOpen}
+  onClose={() => setUploadOpen(false)}
+  folderId={folderId}
+  onUploaded={loadFolder}
+  adminPassword={adminPassword}
+/>
     </>
   );
 }

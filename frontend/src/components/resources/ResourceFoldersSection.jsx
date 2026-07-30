@@ -9,17 +9,23 @@ import {
   CircularProgress,
   Alert,
   Stack,
+  Tooltip,
 } from "@mui/material";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import { fetchFolders } from "../../api/resources";
 import FolderCard from "./FolderCard";
 import CreateFolderDialog from "./CreateFolderDialog";
 import FolderDetailDialog from "./FolderDetailDialog";
+import { useDashboardEdit } from "../../context/DashboardEditContext";
+// ^ adjust this path to wherever DashboardEditProvider/useDashboardEdit actually lives
 
 const ACCENT = "#1E293B";
 
 export default function ResourceFoldersSection() {
+  const { editMode, adminPassword, requestEditToggle } = useDashboardEdit();
+
   const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -42,6 +48,14 @@ export default function ResourceFoldersSection() {
   useEffect(() => {
     loadFolders();
   }, []);
+
+  const handleNewFolderClick = () => {
+    if (!editMode) {
+      requestEditToggle(); // pops the password dialog; user can retry "New Folder" once unlocked
+      return;
+    }
+    setCreateOpen(true);
+  };
 
   return (
     <Card
@@ -77,23 +91,27 @@ export default function ResourceFoldersSection() {
           </Box>
         </Stack>
 
-        <Button
-          variant="contained"
-          startIcon={<AddOutlinedIcon />}
-          onClick={() => setCreateOpen(true)}
-          disableElevation
-          sx={{
-            bgcolor: ACCENT,
-            textTransform: "none",
-            fontWeight: 600,
-            borderRadius: 2,
-            px: 2.5,
-            py: 1,
-            "&:hover": { bgcolor: "#0f172a" },
-          }}
-        >
-          New Folder
-        </Button>
+        <Tooltip title={editMode ? "" : "Unlock edit mode to add a folder"}>
+          <span>
+            <Button
+              variant="contained"
+              startIcon={editMode ? <AddOutlinedIcon /> : <LockOutlinedIcon />}
+              onClick={handleNewFolderClick}
+              disableElevation
+              sx={{
+                bgcolor: ACCENT,
+                textTransform: "none",
+                fontWeight: 600,
+                borderRadius: 2,
+                px: 2.5,
+                py: 1,
+                "&:hover": { bgcolor: "#0f172a" },
+              }}
+            >
+              New Folder
+            </Button>
+          </span>
+        </Tooltip>
       </Stack>
 
       {error && (
@@ -124,7 +142,7 @@ export default function ResourceFoldersSection() {
       ) : (
         <Grid container spacing={2.5}>
           {folders.map((folder) => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={folder.id}>
+            <Grid key={folder.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
               <FolderCard folder={folder} onOpen={(f) => setActiveFolderId(f.id)} />
             </Grid>
           ))}
@@ -135,6 +153,7 @@ export default function ResourceFoldersSection() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={loadFolders}
+        adminPassword={adminPassword}
       />
 
       <FolderDetailDialog

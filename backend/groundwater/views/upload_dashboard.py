@@ -1,5 +1,6 @@
 import mimetypes
 
+from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
@@ -8,6 +9,14 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
 
 from groundwater.models import ResourceFolder, ResourceFile
+
+
+def _check_admin_password(request):
+    supplied = (
+        request.headers.get("X-Admin-Password")
+        or request.data.get("admin_password")
+    )
+    return bool(supplied) and supplied == settings.ADMIN_EDIT_PASSWORD
 
 
 @csrf_exempt
@@ -28,6 +37,9 @@ def resource_folders(request):
             for f in folders
         ]
         return Response(data)
+
+    if not _check_admin_password(request):
+        return Response({"error": "Incorrect password."}, status=401)
 
     name = request.data.get("name")
     description = request.data.get("description", "")
@@ -67,6 +79,8 @@ def resource_folder_detail(request, folder_id):
         return Response({"error": "Folder not found."}, status=404)
 
     if request.method == "DELETE":
+        if not _check_admin_password(request):
+            return Response({"error": "Incorrect password."}, status=401)
         folder.delete()
         return Response({"success": True})
 
@@ -97,6 +111,9 @@ def resource_folder_detail(request, folder_id):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def resource_upload_files(request, folder_id):
+    if not _check_admin_password(request):
+        return Response({"error": "Incorrect password."}, status=401)
+
     try:
         folder = ResourceFolder.objects.get(id=folder_id)
     except ResourceFolder.DoesNotExist:
@@ -145,6 +162,8 @@ def resource_file_detail(request, file_id):
         return Response({"error": "File not found."}, status=404)
 
     if request.method == "DELETE":
+        if not _check_admin_password(request):
+            return Response({"error": "Incorrect password."}, status=401)
         resource_file.delete()
         return Response({"success": True})
 

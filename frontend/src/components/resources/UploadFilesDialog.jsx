@@ -21,7 +21,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { uploadFilesToFolder } from "../../api/resources";
 import { formatBytes } from "../../utils/fileIcons";
 
-export default function UploadFilesDialog({ open, onClose, folderId, onUploaded }) {
+export default function UploadFilesDialog({ open, onClose, folderId, onUploaded, adminPassword }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
@@ -55,7 +55,7 @@ export default function UploadFilesDialog({ open, onClose, folderId, onUploaded 
     setError("");
     try {
       const relativePaths = selectedFiles.map((f) => f.webkitRelativePath || f.name);
-      await uploadFilesToFolder(folderId, selectedFiles, relativePaths);
+      await uploadFilesToFolder(folderId, selectedFiles, relativePaths, adminPassword);
       onUploaded();
       handleClose();
     } catch (err) {
