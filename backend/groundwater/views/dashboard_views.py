@@ -15,12 +15,15 @@ def dashboard(request):
     with connection.cursor() as cursor:
 
         cursor.execute("""
-            SELECT COUNT(*) FROM wells;
+            SELECT COUNT(*) FROM groundwater_well;
         """)
         total_wells = cursor.fetchone()[0]
 
         cursor.execute("""
-            SELECT COUNT(DISTINCT village) FROM wells;
+            SELECT COUNT(DISTINCT l.name)
+FROM groundwater_well w
+JOIN groundwater_location l
+ON w.location_id = l.id;
         """)
         total_villages = cursor.fetchone()[0]
 
@@ -62,16 +65,18 @@ def wells(request):
 
         cursor.execute("""
             SELECT
-                id,
-                well_name,
-                village,
-                latitude,
-                longitude,
-                depth_m,
-                water_level_m,
-                status
-            FROM groundwater_map
-            ORDER BY id;
+    w.id,
+    w.well_id AS well_name,
+    l.name AS village,
+    w.latitude,
+    w.longitude,
+    NULL AS depth_m,
+    NULL AS water_level_m,
+    'active' AS status
+FROM groundwater_well w
+LEFT JOIN groundwater_location l
+ON w.location_id = l.id
+ORDER BY w.id;
         """)
 
         columns = [col[0] for col in cursor.description]
@@ -118,18 +123,20 @@ def well_detail(request, well_id):
             # Well information
             # ------------------------
             cursor.execute("""
-                SELECT
-                    id,
-                    well_name,
-                    village,
-                    latitude,
-                    longitude,
-                    depth_m,
-                    water_level_m,
-                    status
-                FROM groundwater_map
-                WHERE id = %s;
-            """, [well_id])
+    SELECT
+        w.id,
+        w.well_id AS well_name,
+        l.name AS village,
+        w.latitude,
+        w.longitude,
+        NULL AS depth_m,
+        NULL AS water_level_m,
+        'active' AS status
+    FROM groundwater_well w
+    LEFT JOIN groundwater_location l
+        ON w.location_id = l.id
+    WHERE w.id = %s;
+""", [well_id])
 
             row = cursor.fetchone()
 
@@ -142,106 +149,14 @@ def well_detail(request, well_id):
             columns = [col[0] for col in cursor.description]
             well = dict(zip(columns, row))
 
-            # ------------------------
-            # Monthly history
-            # ------------------------
-            cursor.execute("""
-                SELECT
-                    date_trunc('month', time) AS period,
-                    AVG(water_level_m) AS avg_level
-                FROM groundwater_levels
-                WHERE well_id = %s
-                GROUP BY period
-                ORDER BY period;
-            """, [well_id])
-
             monthly = []
-
-            for period, level in cursor.fetchall():
-                if period and level is not None:
-                    monthly.append({
-                        "period": period.strftime("%Y-%m"),
-                        "level": round(level, 2)
-                    })
-
-            # ------------------------
-            # Quarterly history
-            # ------------------------
-            cursor.execute("""
-                SELECT
-                    date_trunc('quarter', time) AS period,
-                    AVG(water_level_m) AS avg_level
-                FROM groundwater_levels
-                WHERE well_id = %s
-                GROUP BY period
-                ORDER BY period;
-            """, [well_id])
-
             quarterly = []
-
-            for period, level in cursor.fetchall():
-                if period and level is not None:
-                    quarterly.append({
-                        "period": f"Q{((period.month-1)//3)+1} {period.year}",
-                        "level": round(level, 2)
-                    })
-
-            # ------------------------
-            # Yearly history
-            # ------------------------
-            cursor.execute("""
-                SELECT
-                    date_trunc('year', time) AS period,
-                    AVG(water_level_m) AS avg_level
-                FROM groundwater_levels
-                WHERE well_id = %s
-                GROUP BY period
-                ORDER BY period;
-            """, [well_id])
-
             yearly = []
 
-            for period, level in cursor.fetchall():
-                if period and level is not None:
-                    yearly.append({
-                        "period": str(period.year),
-                        "level": round(level, 2)
-                    })
-
-            # ------------------------
-            # LULC (optional)
-            # ------------------------
             lulc = {
-                "class": "Unknown",
-                "areaHectares": None
-            }
-
-            try:
-                cursor.execute("""
-                    SELECT
-                        lulc_class,
-                        ST_Area(geom::geography)/10000
-                    FROM lulc_polygons
-                    WHERE ST_Contains(
-                        geom,
-                        ST_SetSRID(
-                            ST_MakePoint(%s,%s),
-                            4326
-                        )
-                    )
-                    LIMIT 1;
-                """, [well["longitude"], well["latitude"]])
-
-                row = cursor.fetchone()
-
-                if row:
-                    lulc = {
-                        "class": row[0],
-                        "areaHectares": round(row[1], 1)
-                    }
-
-            except Exception:
-                pass
+    "class": "Unknown",
+    "areaHectares": None,
+}
 
             return Response({
                 "well": well,
